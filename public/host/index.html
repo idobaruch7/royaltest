@@ -3,217 +3,434 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RoyalTest — Host Table</title>
-    <link rel="stylesheet" href="/public/shared.css">
+    <title>RoyalTest — Table</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+        /* ── Variables ── */
         :root {
-            --green-dark: #0d3320;
-            --green-felt: #1a5c38;
-            --gold: #c9a84c;
-            --gold-light: #f0d080;
-            --text-light: #f0ede4;
-            --text-muted: #a89f8a;
-            --red: #c0392b;
-            --radius: 12px;
+            --bg:           #040705;
+            --felt-dark:    #0c1e14;
+            --felt-mid:     #153020;
+            --felt-light:   #1b4030;
+            --walnut:       #1c1008;
+            --gold:         #b89458;
+            --gold-bright:  #d4a868;
+            --gold-dim:     #6e5228;
+            --ivory:        #f2ece0;
+            --red:          #8c1a28;
+            --text:         #ccc2ac;
+            --text-muted:   #706050;
+            --radius:       10px;
         }
+
+        /* ── Reset ── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            margin: 0;
-            padding: 0;
-            background-color: var(--green-dark);
-            color: var(--text-light);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'IBM Plex Mono', monospace;
+            background: var(--bg);
+            color: var(--text);
             overflow: hidden;
+            width: 100vw; height: 100vh;
+            position: relative;
         }
 
-        /* ── Lobby ── */
+        /* Grain overlay */
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+            opacity: 0.024;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* ─────────────────────────────────── */
+        /* LOBBY SCREEN                        */
+        /* ─────────────────────────────────── */
         #lobby-screen {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
-            gap: 1.5rem;
-            background: radial-gradient(circle at center, var(--green-felt), var(--green-dark));
+            gap: 0;
+            position: relative;
+            overflow: hidden;
+            background: radial-gradient(ellipse at 50% 52%, var(--felt-light) 0%, var(--felt-mid) 28%, var(--felt-dark) 58%, #060e09 100%);
         }
 
-        #lobby-screen h1 { font-size: 3rem; color: var(--gold); text-shadow: 0 4px 6px rgba(0,0,0,0.5); margin: 0; }
+        /* Breathing radial light on felt */
+        #lobby-screen::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: radial-gradient(ellipse at 50% 50%, rgba(27, 64, 48, 0.55) 0%, transparent 58%);
+            animation: felt-breathe 5s ease-in-out infinite alternate;
+            pointer-events: none;
+        }
+        @keyframes felt-breathe {
+            from { transform: scale(0.82); opacity: 0.45; }
+            to   { transform: scale(1.18); opacity: 1; }
+        }
 
+        /* Crosshatch texture */
+        #lobby-screen::after {
+            content: '';
+            position: absolute; inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Cpath d='M0 0L14 14M14 0L0 14' stroke='rgba(255,255,255,0.03)' stroke-width='0.55'/%3E%3C/svg%3E");
+            pointer-events: none;
+        }
+
+        .lobby-inner {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.8rem;
+            width: 100%;
+            max-width: 900px;
+            padding: 0 40px;
+        }
+
+        .lobby-logo {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(3.5rem, 7vw, 5.5rem);
+            font-weight: 700;
+            color: var(--gold);
+            letter-spacing: 0.05em;
+            line-height: 1;
+            text-shadow: 0 4px 32px rgba(184,148,88,0.32), 0 2px 4px rgba(0,0,0,0.7);
+        }
+
+        .lobby-tagline {
+            font-size: 0.65rem;
+            letter-spacing: 0.32em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-top: -1.2rem;
+        }
+
+        .lobby-rule {
+            width: 160px; height: 1px;
+            background: linear-gradient(to right, transparent, var(--gold-dim), transparent);
+        }
+
+        /* URL display */
         .join-url-box {
-            background: rgba(0,0,0,0.4);
-            border: 1px solid var(--gold);
+            background: rgba(3, 6, 4, 0.72);
+            border: 1px solid rgba(184,148,88,0.28);
             border-radius: var(--radius);
-            padding: 0.6rem 1.5rem;
+            padding: 14px 36px;
             text-align: center;
+            backdrop-filter: blur(6px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
         }
-        .join-url-box .lbl { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
-        .join-url-box .url { font-family: monospace; font-size: 1.2rem; color: var(--gold-light); font-weight: 600; }
+        .join-url-box .lbl {
+            font-size: 0.58rem;
+            letter-spacing: 0.26em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+        .join-url-box .url {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: clamp(1.1rem, 2.2vw, 1.55rem);
+            font-weight: 600;
+            color: var(--gold-bright);
+            letter-spacing: 0.04em;
+        }
 
+        /* Player badges in lobby */
         .lobby-players {
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 10px;
             max-width: 800px;
             justify-content: center;
-            min-height: 54px;
+            min-height: 48px;
         }
 
         .lobby-player-badge {
-            background: rgba(0,0,0,0.4);
-            border: 1px solid var(--gold);
-            padding: 10px 20px;
-            border-radius: 30px;
-            font-size: 1.1rem;
             display: flex;
-            gap: 8px;
             align-items: center;
+            gap: 10px;
+            background: rgba(3, 6, 4, 0.65);
+            border: 1px solid rgba(184,148,88,0.26);
+            border-radius: 100px;
+            padding: 10px 22px;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--text);
+            backdrop-filter: blur(6px);
+        }
+        .lobby-player-badge strong { color: var(--ivory); }
+        .lobby-player-badge span {
+            color: var(--gold);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.78rem;
         }
 
+        /* Start button */
         .start-btn {
-            background: var(--gold); color: #000;
-            font-size: 1.4rem; padding: 14px 40px;
-            border: none; border-radius: var(--radius);
-            cursor: pointer; font-weight: bold;
-            box-shadow: 0 4px 15px rgba(201,168,76,0.4);
-            transition: transform 0.2s, opacity 0.2s;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.82rem;
+            font-weight: 600;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            background: var(--gold);
+            color: #040602;
+            border: none;
+            border-radius: var(--radius);
+            padding: 16px 52px;
+            cursor: pointer;
+            box-shadow: 0 6px 28px rgba(184,148,88,0.24);
+            transition: background 0.2s, transform 0.12s, box-shadow 0.2s;
         }
-        .start-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-        .start-btn:hover:not(:disabled) { transform: scale(1.05); }
+        .start-btn:disabled { opacity: 0.36; cursor: not-allowed; transform: none !important; box-shadow: none; }
+        .start-btn:hover:not(:disabled) {
+            background: var(--gold-bright);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 36px rgba(184,148,88,0.38);
+        }
+        .start-btn:active:not(:disabled) { transform: scale(0.975); }
 
-        /* ── Game Screen ── */
+        /* ─────────────────────────────────── */
+        /* GAME SCREEN                         */
+        /* ─────────────────────────────────── */
         #game-screen {
             display: none;
             position: relative;
-            width: 100vw;
-            height: 100vh;
+            width: 100vw; height: 100vh;
+            background: radial-gradient(ellipse at 50% 46%, #081308 0%, var(--bg) 65%);
         }
 
+        /* ── Top Bar ── */
         .top-bar {
             position: absolute; top: 0; left: 0; width: 100%;
             display: flex; justify-content: space-between; align-items: center;
-            padding: 15px 30px; box-sizing: border-box;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+            padding: 18px 36px;
+            box-sizing: border-box;
+            background: linear-gradient(to bottom, rgba(2,4,2,0.88) 0%, transparent 100%);
             z-index: 10;
         }
 
         .phase-badge {
-            background: var(--gold); color: #000;
-            padding: 5px 15px; border-radius: 20px;
-            font-weight: bold; font-size: 1.1rem;
-            text-transform: uppercase; letter-spacing: 2px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.68rem;
+            font-weight: 600;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: var(--gold);
+            background: rgba(3, 6, 4, 0.72);
+            border: 1px solid rgba(184,148,88,0.28);
+            border-radius: 100px;
+            padding: 8px 22px;
+            backdrop-filter: blur(8px);
         }
 
         .turn-banner {
-            font-size: 1.4rem;
-            background: rgba(0,0,0,0.6);
-            padding: 7px 22px;
-            border-radius: 30px;
-            border: 1px solid var(--gold);
-            animation: pulse-glow 2s infinite alternate;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.55rem;
+            font-weight: 400;
+            color: var(--text);
+            background: rgba(3, 6, 4, 0.68);
+            border: 1px solid rgba(184,148,88,0.2);
+            border-radius: 100px;
+            padding: 8px 30px;
+            backdrop-filter: blur(8px);
+            animation: pulse-glow 2.8s ease-in-out infinite alternate;
         }
-
         @keyframes pulse-glow {
-            from { box-shadow: 0 0 5px rgba(201,168,76,0.2); }
-            to   { box-shadow: 0 0 20px rgba(201,168,76,0.8); }
+            from { box-shadow: 0 0 0 rgba(184,148,88,0); border-color: rgba(184,148,88,0.14); }
+            to   { box-shadow: 0 0 18px rgba(184,148,88,0.38); border-color: rgba(184,148,88,0.5); }
         }
+        .turn-banner strong { color: var(--gold-bright); font-style: italic; font-weight: 600; }
 
-        /* ── Poker Table ── */
+        .dealer-info {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+        }
+        #dealer-name { color: var(--text); font-weight: 500; }
+
+        /* ── Oval Poker Table ── */
         .table-container {
             position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -45%);
-            width: 75vw; height: 65vh;
-            background: radial-gradient(ellipse at center, var(--green-felt) 0%, #114023 100%);
-            border: 22px solid #2a1b12;
+            transform: translate(-50%, -44%);
+            width: 76vw; height: 66vh;
+            /* Crosshatch felt texture + deep emerald radial gradient */
+            background:
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Cpath d='M0 0L14 14M14 0L0 14' stroke='rgba(255,255,255,0.032)' stroke-width='0.55'/%3E%3C/svg%3E"),
+                radial-gradient(ellipse at 44% 40%, var(--felt-light) 0%, var(--felt-mid) 42%, var(--felt-dark) 100%);
             border-radius: 50% / 50%;
-            box-shadow: inset 0 0 60px rgba(0,0,0,0.8), 0 20px 50px rgba(0,0,0,0.9);
+            border: 26px solid var(--walnut);
+            box-shadow:
+                /* Felt depth — darken the perimeter */
+                inset 0 0 100px rgba(0,0,0,0.52),
+                inset 0 0 35px rgba(0,0,0,0.28),
+                /* Walnut inner rim highlight */
+                inset 0 0 0 3px rgba(255,255,255,0.035),
+                inset 0 0 0 5px rgba(0,0,0,0.4),
+                /* Drop shadows */
+                0 32px 90px rgba(0,0,0,0.94),
+                0 12px 32px rgba(0,0,0,0.72),
+                /* Outer rim definition */
+                0 0 0 1px rgba(0,0,0,0.7);
         }
 
         /* ── Center Board ── */
         .board {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            display: flex; flex-direction: column; align-items: center; gap: 16px;
+            display: flex; flex-direction: column; align-items: center; gap: 20px;
         }
 
         .pot-amount {
-            background: rgba(0,0,0,0.6); border-radius: 20px;
-            padding: 4px 22px; font-size: 1.4rem; color: var(--gold-light);
-            border: 1px solid rgba(255,255,255,0.1);
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 2.1rem;
+            font-weight: 600;
+            color: var(--gold-bright);
+            letter-spacing: 0.04em;
             white-space: nowrap;
+            text-shadow: 0 2px 16px rgba(184,148,88,0.42);
+            line-height: 1;
         }
 
-        .community-cards { display: flex; gap: 10px; }
+        .community-cards { display: flex; gap: 10px; align-items: flex-end; }
 
         /* ── Cards ── */
         .card {
-            width: 60px; height: 84px;
-            background: #fff; border-radius: 6px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
-            position: relative; color: #1a1a2e;
-            display: inline-block; user-select: none; flex-shrink: 0;
+            width: 62px; height: 88px;
+            background: var(--ivory);
+            border-radius: 6px;
+            box-shadow:
+                0 8px 20px rgba(0,0,0,0.72),
+                0 2px 4px rgba(0,0,0,0.4),
+                inset 0 0 0 1px rgba(0,0,0,0.06);
+            position: relative;
+            color: #1a1408;
+            display: inline-block;
+            user-select: none;
+            flex-shrink: 0;
         }
         .card.red { color: var(--red); }
-        .card .top-left    { position: absolute; top: 4px; left: 5px; font-size: 14px; font-weight: bold; line-height: 1; }
-        .card .bottom-right{ position: absolute; bottom: 4px; right: 5px; font-size: 14px; font-weight: bold; line-height: 1; transform: rotate(180deg); }
-        .card .center      { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 30px; line-height: 1; }
-        .card.placeholder  { background: rgba(255,255,255,0.06); border: 2px dashed rgba(255,255,255,0.2); box-shadow: none; }
+        .card .top-left {
+            position: absolute; top: 4px; left: 5px;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 15px; font-weight: 700; line-height: 1;
+        }
+        .card .bottom-right {
+            position: absolute; bottom: 4px; right: 5px;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 15px; font-weight: 700; line-height: 1;
+            transform: rotate(180deg);
+        }
+        .card .center {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 32px; line-height: 1;
+        }
+        .card.placeholder {
+            background: rgba(255,255,255,0.04);
+            border: 1px dashed rgba(255,255,255,0.1);
+            box-shadow: none;
+        }
 
         /* ── Seats ── */
-        #seats-container {
-            position: absolute;
-            inset: 0;
-        }
+        #seats-container { position: absolute; inset: 0; }
 
         .seat {
             position: absolute;
-            width: 140px;
+            width: 148px;
             display: flex; flex-direction: column; align-items: center;
             transform: translate(-50%, -50%);
             transition: opacity 0.3s;
         }
 
         .seat-info {
-            background: rgba(0,0,0,0.78); border-radius: var(--radius);
-            padding: 10px 12px; text-align: center; width: 100%;
-            border: 2px solid transparent; position: relative;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            background: rgba(3, 7, 5, 0.9);
+            border-radius: 10px;
+            padding: 10px 14px;
+            text-align: center;
+            width: 100%;
+            border: 1px solid rgba(184,148,88,0.13);
+            position: relative;
+            box-shadow: 0 6px 22px rgba(0,0,0,0.65);
             z-index: 2;
+            backdrop-filter: blur(6px);
+            transition: border-color 0.3s, box-shadow 0.3s;
         }
 
         .seat.active .seat-info {
             border-color: var(--gold);
-            box-shadow: 0 0 22px rgba(201,168,76,0.85);
-            animation: seat-glow 1.2s ease-in-out infinite alternate;
+            box-shadow:
+                0 0 0 1px var(--gold),
+                0 0 28px rgba(184,148,88,0.65),
+                0 6px 22px rgba(0,0,0,0.65);
+            animation: seat-glow 1.5s ease-in-out infinite alternate;
         }
-        .seat.folded { opacity: 0.35; filter: grayscale(80%); }
-
         @keyframes seat-glow {
-            from { box-shadow: 0 0 8px rgba(201,168,76,0.5); }
-            to   { box-shadow: 0 0 28px rgba(201,168,76,1); }
+            from { box-shadow: 0 0 0 1px var(--gold), 0 0 10px rgba(184,148,88,0.35), 0 6px 22px rgba(0,0,0,0.65); }
+            to   { box-shadow: 0 0 0 1px var(--gold), 0 0 34px rgba(184,148,88,0.82), 0 6px 22px rgba(0,0,0,0.65); }
         }
 
-        .seat-name  { font-weight: bold; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .seat-chips { color: var(--gold-light); font-size: 0.88rem; margin-top: 4px; }
+        .seat.folded { opacity: 0.26; filter: grayscale(90%); }
 
-        .seat-badges { position: absolute; top: -10px; left: -10px; display: flex; gap: 4px; }
+        .seat-name {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--ivory);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            letter-spacing: 0.02em;
+        }
+        .seat-chips {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--gold);
+            margin-top: 4px;
+            letter-spacing: 0.04em;
+        }
+
+        .seat-badges {
+            position: absolute; top: -11px; left: -11px;
+            display: flex; gap: 3px;
+        }
         .badge {
-            width: 22px; height: 22px; border-radius: 50%; background: #eee; color: #000;
+            width: 20px; height: 20px;
+            border-radius: 50%;
+            background: rgba(220,210,188,0.92);
+            color: #1a1408;
             display: flex; align-items: center; justify-content: center;
-            font-size: 11px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 9px; font-weight: 600;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.65);
         }
-        .badge.sb { background: #3498db; color: #fff; }
-        .badge.bb { background: #9b59b6; color: #fff; }
+        .badge.sb { background: #264e7a; color: #90c0e8; }
+        .badge.bb { background: #4e2670; color: #c090e0; }
 
-        /* Bet chips in front of each seat */
+        /* Bet label */
         .seat-bet {
-            position: absolute;
-            font-size: 1rem; font-weight: bold; color: var(--gold);
-            background: rgba(0,0,0,0.65); padding: 3px 10px; border-radius: 12px;
-            z-index: 1; display: none; white-space: nowrap;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--gold-bright);
+            background: rgba(3, 6, 4, 0.82);
+            border: 1px solid rgba(184,148,88,0.32);
+            padding: 3px 10px;
+            border-radius: 10px;
+            z-index: 1; display: none;
+            white-space: nowrap;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 0 10px rgba(184,148,88,0.18);
         }
         .seat.has-bet .seat-bet { display: block; }
 
-        /* Seat positions around the oval */
+        /* Seat positions */
         .seat[data-pos="0"] { top: 10%; left: 15%; }   .seat[data-pos="0"] .seat-bet { top: 115%; left: 50%; transform: translateX(-50%); }
         .seat[data-pos="1"] { top: 0%;  left: 50%; }   .seat[data-pos="1"] .seat-bet { top: 115%; left: 50%; transform: translateX(-50%); }
         .seat[data-pos="2"] { top: 10%; left: 85%; }   .seat[data-pos="2"] .seat-bet { top: 115%; left: 50%; transform: translateX(-50%); }
@@ -223,7 +440,7 @@
         .seat[data-pos="6"] { top: 90%; left: 15%; }   .seat[data-pos="6"] .seat-bet { bottom: 115%; left: 50%; transform: translateX(-50%); }
         .seat[data-pos="7"] { top: 50%; left: 0%;  }   .seat[data-pos="7"] .seat-bet { top: 50%; left: 110%; transform: translateY(-50%); }
 
-        /* Hole cards shown at showdown */
+        /* Hole cards at showdown */
         .seat-hand {
             position: absolute; bottom: -68px;
             display: flex; gap: 4px; z-index: 3;
@@ -232,85 +449,191 @@
 
         .seat-hand-name {
             position: absolute; bottom: -88px;
-            background: var(--gold); color: #000; font-size: 0.75rem;
-            padding: 2px 8px; border-radius: 8px; font-weight: bold;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 0.72rem; font-style: italic; font-weight: 600;
+            background: rgba(184,148,88,0.9);
+            color: #040602;
+            padding: 2px 10px; border-radius: 8px;
             white-space: nowrap; left: 50%; transform: translateX(-50%);
         }
+
         .winner-star {
             position: absolute; top: -18px; right: -8px;
-            font-size: 1.4rem; z-index: 5;
+            font-size: 1.3rem; z-index: 5;
         }
 
         /* ── Queue Panel ── */
         #queue-panel {
-            position: absolute; bottom: 20px; left: 20px;
-            background: rgba(0,0,0,0.75); border: 1px solid rgba(201,168,76,0.4);
-            border-radius: var(--radius); padding: 10px 16px;
-            display: none; flex-direction: column; gap: 6px;
+            position: absolute; bottom: 24px; left: 24px;
+            background: rgba(3, 6, 4, 0.85);
+            border: 1px solid rgba(184,148,88,0.2);
+            border-radius: var(--radius);
+            padding: 12px 18px;
+            display: none; flex-direction: column; gap: 7px;
             z-index: 20; max-width: 220px;
-            backdrop-filter: blur(4px);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
         }
         #queue-panel.visible { display: flex; }
         .queue-label {
-            font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px;
-            color: var(--text-muted); display: flex; align-items: center; gap: 6px;
+            font-size: 0.56rem;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            display: flex; align-items: center; gap: 6px;
         }
-        .queue-label::before { content: '⏳'; font-size: 0.85rem; }
+        .queue-label::before { content: '⏳'; font-size: 0.78rem; }
         .queue-item {
-            font-size: 0.9rem; color: var(--text-light);
+            font-size: 0.76rem;
+            color: var(--text);
             display: flex; justify-content: space-between; gap: 12px;
         }
-        .queue-item span { color: var(--gold-light); font-size: 0.8rem; }
+        .queue-item span { color: var(--gold); font-size: 0.7rem; }
 
-        /* ── Winner Banner ── */
+        /* ── Winner Overlay ── */
         #winner-overlay {
             position: absolute; bottom: 0; left: 0; right: 0;
-            background: linear-gradient(to top, rgba(0,0,0,0.97) 60%, rgba(0,0,0,0.75));
-            border-top: 2px solid var(--gold);
-            display: none; flex-direction: row;
+            background: linear-gradient(to top, rgba(2,4,2,0.98) 50%, rgba(2,4,2,0.9) 80%, rgba(2,4,2,0.55) 100%);
+            border-top: 1px solid rgba(184,148,88,0.4);
+            display: none;
+            flex-direction: row;
             justify-content: space-between; align-items: center;
-            z-index: 100; padding: 18px 36px; gap: 2rem;
-            box-shadow: 0 -8px 40px rgba(0,0,0,0.8);
+            z-index: 100;
+            padding: 26px 52px;
+            gap: 2rem;
+            box-shadow: 0 -24px 70px rgba(0,0,0,0.92);
+            /* Slide up when made visible */
+            animation: winner-slide-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
-        .winner-info { display: flex; flex-direction: column; gap: 4px; }
-        #winner-title { font-size: 2rem; color: var(--gold); margin: 0; font-weight: bold; }
-        #winner-desc  { font-size: 1.1rem; color: var(--text-muted); margin: 0; }
+        @keyframes winner-slide-up {
+            from { transform: translateY(100%); }
+            to   { transform: translateY(0); }
+        }
 
-        /* ── Winning card highlight ── */
-        .card.winning {
-            box-shadow: 0 0 0 3px var(--gold), 0 0 18px rgba(201,168,76,0.9);
-            transform: scale(1.12);
-            z-index: 5;
-            position: relative;
+        .winner-info { display: flex; flex-direction: column; gap: 5px; }
+        #winner-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(2rem, 4vw, 2.8rem);
+            font-weight: 700;
+            font-style: italic;
+            color: var(--gold-bright);
+            margin: 0; line-height: 1;
+            text-shadow: 0 2px 20px rgba(184,148,88,0.42);
         }
-        /* Seat cards already scale(0.72) via transform-origin; just add the glow */
-        .seat .card.winning { transform: scale(0.82); }
+        #winner-desc {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.2rem;
+            font-style: italic;
+            color: var(--text-muted);
+            margin: 0;
+            letter-spacing: 0.04em;
+        }
+
+        /* ── Winning Card Highlight ── */
+        .card.winning {
+            box-shadow:
+                0 0 0 2px var(--gold),
+                0 0 22px rgba(184,148,88,0.75),
+                0 8px 20px rgba(0,0,0,0.72);
+            transform: scale(1.1);
+            z-index: 5; position: relative;
+        }
+        .seat .card.winning { transform: scale(0.8); }
+
+        /* ─────────────────────────────────── */
+        /* CHIP & CARD ANIMATIONS (preserved)  */
+        /* ─────────────────────────────────── */
+        @keyframes chip-fly {
+            0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+            70%  { opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)) scale(0.55); opacity: 0; }
+        }
+        .flying-chip {
+            position: fixed;
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            border: 3px solid var(--gold);
+            background: radial-gradient(circle at 35% 35%, #f0d080, #8a6020);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.6), inset 0 0 0 2px rgba(255,255,255,0.15);
+            pointer-events: none;
+            z-index: 999;
+            animation: chip-fly 0.65s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+
+        @keyframes pot-pop {
+            0%   { transform: scale(1); }
+            40%  { transform: scale(1.18); color: var(--gold-bright); }
+            100% { transform: scale(1); }
+        }
+        .pot-amount.popping { animation: pot-pop 0.4s ease-out; }
+
+        @keyframes card-slide-in {
+            from { opacity: 0; transform: translateY(-18px) scale(0.85); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .card.dealing {
+            animation: card-slide-in 0.3s cubic-bezier(0.34, 1.3, 0.64, 1) both;
+        }
+
+        @keyframes winner-ring {
+            0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 0.9; }
+            100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+        }
+        .winner-burst {
+            position: fixed;
+            width: 80px; height: 80px;
+            border-radius: 50%;
+            border: 3px solid var(--gold);
+            pointer-events: none;
+            z-index: 998;
+            animation: winner-ring 0.7s ease-out forwards;
+        }
+
+        @keyframes chip-pop-up {
+            from { opacity: 1; transform: translateY(0) scale(1); }
+            to   { opacity: 0; transform: translateY(-60px) scale(0.8); }
+        }
+        .pot-popup {
+            position: fixed;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--gold-bright);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+            z-index: 999;
+            animation: chip-pop-up 1.1s ease-out forwards;
+        }
     </style>
 </head>
 <body>
 
     <!-- ── LOBBY ── -->
     <div id="lobby-screen">
-        <h1>&#9824; RoyalTest</h1>
+        <div class="lobby-inner">
+            <div class="lobby-logo">♠ RoyalTest</div>
+            <div class="lobby-tagline">Private Texas Hold'em</div>
+            <div class="lobby-rule"></div>
 
-        <div class="join-url-box">
-            <div class="lbl">Players join at</div>
-            <div class="url" id="join-url">—</div>
+            <div class="join-url-box">
+                <div class="lbl">Players join at</div>
+                <div class="url" id="join-url">—</div>
+            </div>
+
+            <div id="lobby-list" class="lobby-players">
+                <span style="color:var(--text-muted);font-style:italic;font-family:'Cormorant Garamond',serif;font-size:1.1rem;">Waiting for players…</span>
+            </div>
+
+            <button id="btn-start" class="start-btn" disabled>Waiting for players…</button>
         </div>
-
-        <div id="lobby-list" class="lobby-players">
-            <span style="color:var(--text-muted); font-style:italic;">Waiting for players...</span>
-        </div>
-
-        <button id="btn-start" class="start-btn" disabled>Waiting for players...</button>
     </div>
 
     <!-- ── GAME TABLE ── -->
     <div id="game-screen">
         <div class="top-bar">
             <div id="phase-badge" class="phase-badge">Waiting</div>
-            <div id="turn-banner" class="turn-banner">Waiting to start...</div>
-            <div style="font-size:1.1rem; color:var(--text-muted);">Dealer: <span id="dealer-name" style="color:var(--text-light);">—</span></div>
+            <div id="turn-banner" class="turn-banner">Waiting to start…</div>
+            <div class="dealer-info">Dealer: <span id="dealer-name">—</span></div>
         </div>
 
         <div class="table-container">
@@ -333,34 +656,34 @@
             <div id="winner-title">&#127942; Winner</div>
             <div id="winner-desc"></div>
         </div>
-        <button id="btn-next-hand" class="start-btn" style="font-size:1.1rem; white-space:nowrap;">Next Hand &#9654;</button>
+        <button id="btn-next-hand" class="start-btn" style="white-space:nowrap;">Next Hand &#9654;</button>
     </div>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
         const socket = io();
 
-        const lobbyScreen   = document.getElementById('lobby-screen');
-        const gameScreen    = document.getElementById('game-screen');
-        const lobbyList     = document.getElementById('lobby-list');
-        const btnStart      = document.getElementById('btn-start');
-        const seatsContainer= document.getElementById('seats-container');
-        const communityEl   = document.getElementById('community-cards');
-        const potEl         = document.getElementById('pot-amount');
-        const phaseBadgeEl  = document.getElementById('phase-badge');
-        const turnBannerEl  = document.getElementById('turn-banner');
-        const dealerNameEl  = document.getElementById('dealer-name');
-        const winnerOverlay = document.getElementById('winner-overlay');
-        const winnerTitle   = document.getElementById('winner-title');
-        const winnerDesc    = document.getElementById('winner-desc');
-        const btnNextHand   = document.getElementById('btn-next-hand');
-        const queuePanel    = document.getElementById('queue-panel');
-        const queueList     = document.getElementById('queue-list');
+        const lobbyScreen    = document.getElementById('lobby-screen');
+        const gameScreen     = document.getElementById('game-screen');
+        const lobbyList      = document.getElementById('lobby-list');
+        const btnStart       = document.getElementById('btn-start');
+        const seatsContainer = document.getElementById('seats-container');
+        const communityEl    = document.getElementById('community-cards');
+        const potEl          = document.getElementById('pot-amount');
+        const phaseBadgeEl   = document.getElementById('phase-badge');
+        const turnBannerEl   = document.getElementById('turn-banner');
+        const dealerNameEl   = document.getElementById('dealer-name');
+        const winnerOverlay  = document.getElementById('winner-overlay');
+        const winnerTitle    = document.getElementById('winner-title');
+        const winnerDesc     = document.getElementById('winner-desc');
+        const btnNextHand    = document.getElementById('btn-next-hand');
+        const queuePanel     = document.getElementById('queue-panel');
+        const queueList      = document.getElementById('queue-list');
 
         // Stable seat assignment: nickname → index 0-7
-        let playerSeats = {};
+        let playerSeats   = {};
         let nextSeatIndex = 0;
-        let winnerCardKeys = new Set(); // "rank+suit" of best-hand cards for highlight
+        let winnerCardKeys = new Set();
 
         const PHASE_NAMES = {
             waiting: 'Waiting', pre_flop: 'Pre-Flop', flop: 'Flop',
@@ -400,19 +723,19 @@
 
         socket.on('lobby_update', (players) => {
             if (players.length === 0) {
-                lobbyList.innerHTML = '<span style="color:var(--text-muted); font-style:italic;">Waiting for players...</span>';
+                lobbyList.innerHTML = '<span style="color:var(--text-muted);font-style:italic;font-family:\'Cormorant Garamond\',serif;font-size:1.1rem;">Waiting for players…</span>';
             } else {
                 lobbyList.innerHTML = players.map(p =>
                     `<div class="lobby-player-badge">
                         <strong>${esc(p.nickname)}</strong>
-                        <span style="color:var(--gold);">&#9679; ${p.chips.toLocaleString()}</span>
+                        <span>&#9679; ${p.chips.toLocaleString()}</span>
                     </div>`
                 ).join('');
             }
             btnStart.disabled = players.length < 2;
             btnStart.textContent = players.length >= 2
                 ? `Start Game (${players.length} players)`
-                : 'Waiting for players...';
+                : 'Waiting for players…';
         });
 
         socket.on('game_starting', () => {
@@ -425,7 +748,6 @@
         socket.on('game_state', (state) => { winnerCardKeys = new Set(); renderGame(state); });
 
         socket.on('hand_over', (data) => {
-            // Build set of winning card keys for highlight
             winnerCardKeys = new Set();
             const details = data.winner_details || {};
             Object.values(details).forEach(d => {
@@ -434,14 +756,26 @@
 
             renderGame(data.game_state);
 
+            // Winner burst animations + sound
             const winners = data.winners || [];
-            const lines = winners.map(w =>
-                details[w] ? `${esc(w)} — ${esc(details[w].hand_name)}` : esc(w)
-            );
+            soundWin();
+            winners.forEach(w => {
+                const seatPos = playerSeats[w];
+                if (seatPos === undefined) return;
+                const center = getSeatCenter(seatPos);
+                if (!center) return;
+                for (let i = 0; i < 3; i++) {
+                    setTimeout(() => burstAt(center.x, center.y), i * 180);
+                }
+            });
+
             winnerTitle.innerHTML = '&#127942; ' + winners.map(esc).join(' &amp; ');
             winnerDesc.innerHTML = winners.map(w => details[w] ? esc(details[w].hand_name) : '').filter(Boolean).join(', ');
             btnNextHand.style.display = '';
             winnerOverlay.style.display = 'flex';
+            // Reset bet tracking for next hand
+            prevBets = {};
+            prevPot  = 0;
         });
 
         socket.on('queue_update', (players) => {
@@ -468,26 +802,153 @@
             socket.emit('next_hand');
         });
 
+        // ── Audio ─────────────────────────────────────────────────────────────
+        let _audioCtx = null;
+        function _ctx() {
+            if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            return _audioCtx;
+        }
+        document.addEventListener('click', _ctx, { once: true });
+
+        function _tone(freq, dur, type = 'sine', vol = 0.25, delay = 0) {
+            try {
+                const ctx = _ctx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.type = type; osc.frequency.value = freq;
+                gain.gain.setValueAtTime(vol, ctx.currentTime + delay);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + dur);
+                osc.start(ctx.currentTime + delay);
+                osc.stop(ctx.currentTime + delay + dur);
+            } catch (_) {}
+        }
+
+        function soundChip(n = 1) {
+            for (let i = 0; i < Math.min(n, 4); i++) {
+                const f = 600 + Math.random() * 200;
+                _tone(f, 0.045, 'triangle', 0.22, i * 0.055);
+            }
+        }
+        function soundDeal()     { _tone(1400, 0.035, 'triangle', 0.18); _tone(900, 0.05, 'triangle', 0.12, 0.04); }
+        function soundPotGrow()  { _tone(440, 0.09, 'sine', 0.12); _tone(660, 0.07, 'sine', 0.08, 0.1); }
+        function soundWin()      { [523, 659, 784, 1047].forEach((f, i) => _tone(f, 0.22, 'sine', 0.3, i * 0.1)); }
+        function soundFold()     { _tone(180, 0.14, 'triangle', 0.14); }
+        function soundStreet()   { [330, 415, 523].forEach((f, i) => _tone(f, 0.18, 'sine', 0.2, i * 0.03)); }
+
+        // ── Chip animation helpers ─────────────────────────────────────────────
+        let prevBets = {};
+        let prevPot  = 0;
+
+        function getSeatCenter(pos) {
+            const positions = [
+                [0.15, 0.10], [0.50, 0.00], [0.85, 0.10], [1.00, 0.50],
+                [0.85, 0.90], [0.50, 1.00], [0.15, 0.90], [0.00, 0.50],
+            ];
+            const tbl = document.querySelector('.table-container');
+            if (!tbl) return null;
+            const r = tbl.getBoundingClientRect();
+            const [lx, ly] = positions[pos] || [0.5, 0.5];
+            return { x: r.left + lx * r.width, y: r.top + ly * r.height };
+        }
+
+        function getPotCenter() {
+            const potEl2 = document.getElementById('pot-amount');
+            if (!potEl2) return null;
+            const r = potEl2.getBoundingClientRect();
+            return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        }
+
+        function flyChipsFromSeat(pos, count) {
+            const from = getSeatCenter(pos);
+            const to   = getPotCenter();
+            if (!from || !to) return;
+            const n = Math.min(count, 5);
+            for (let i = 0; i < n; i++) {
+                setTimeout(() => {
+                    const chip = document.createElement('div');
+                    chip.className = 'flying-chip';
+                    const jx = (Math.random() - 0.5) * 14;
+                    const jy = (Math.random() - 0.5) * 14;
+                    chip.style.left = `${from.x - 11 + jx}px`;
+                    chip.style.top  = `${from.y - 11 + jy}px`;
+                    chip.style.setProperty('--tx', `${to.x - from.x - jx}px`);
+                    chip.style.setProperty('--ty', `${to.y - from.y - jy}px`);
+                    document.body.appendChild(chip);
+                    chip.addEventListener('animationend', () => chip.remove());
+                }, i * 80);
+            }
+        }
+
+        function popPot(x, y, amount) {
+            const el = document.createElement('div');
+            el.className = 'pot-popup';
+            el.textContent = `+${amount.toLocaleString()}`;
+            el.style.left = `${x}px`;
+            el.style.top  = `${y}px`;
+            document.body.appendChild(el);
+            el.addEventListener('animationend', () => el.remove());
+        }
+
+        function burstAt(x, y) {
+            const el = document.createElement('div');
+            el.className = 'winner-burst';
+            el.style.left = `${x}px`;
+            el.style.top  = `${y}px`;
+            document.body.appendChild(el);
+            el.addEventListener('animationend', () => el.remove());
+        }
+
+        function pulsePot() {
+            potEl.classList.remove('popping');
+            void potEl.offsetWidth;
+            potEl.classList.add('popping');
+            potEl.addEventListener('animationend', () => potEl.classList.remove('popping'), { once: true });
+        }
+
         // ── Render ────────────────────────────────────────────────────────────
+        let prevPhase = null;
+
         function renderGame(state) {
             phaseBadgeEl.textContent = PHASE_NAMES[state.state] || state.state;
-            potEl.textContent        = `Pot: ${(state.pot || 0).toLocaleString()}`;
+
+            if (state.state !== prevPhase && prevPhase !== null) {
+                if (['flop','turn','river'].includes(state.state)) soundStreet();
+            }
+            prevPhase = state.state;
+
+            const newPot = state.pot || 0;
+            if (newPot > prevPot && prevPot > 0) {
+                pulsePot();
+                soundPotGrow();
+                const potCenter = getPotCenter();
+                if (potCenter) popPot(potCenter.x - 30, potCenter.y - 28, newPot - prevPot);
+            }
+            prevPot = newPot;
+
+            potEl.textContent        = `Pot: ${newPot.toLocaleString()}`;
             dealerNameEl.textContent = esc(state.dealer || '—');
 
             if (state.state === 'showdown') {
-                turnBannerEl.textContent = 'Showdown!';
+                turnBannerEl.textContent = 'Showdown';
             } else if (state.current_player) {
-                turnBannerEl.innerHTML = `Waiting for <strong>${esc(state.current_player)}</strong>...`;
+                turnBannerEl.innerHTML = `<strong>${esc(state.current_player)}</strong> to act`;
             } else {
                 turnBannerEl.textContent = '—';
             }
 
-            // Community cards
+            // Community cards — detect newly dealt and animate
+            const prevCardCount = communityEl.querySelectorAll('.card:not(.placeholder)').length;
             communityEl.innerHTML = '';
             for (let i = 0; i < 5; i++) {
                 const c = state.community_cards && state.community_cards[i];
                 const el = c ? makeCard(c.rank, c.suit) : makePlaceholder();
                 if (c && winnerCardKeys.has(c.rank + c.suit)) el.classList.add('winning');
+                if (c && i >= prevCardCount) {
+                    el.classList.add('dealing');
+                    el.style.animationDelay = `${(i - prevCardCount) * 0.12}s`;
+                    soundDeal();
+                }
                 communityEl.appendChild(el);
             }
 
@@ -498,11 +959,21 @@
                 }
             });
 
-            // Render seats
+            // Render seats — detect new bets and fire chip animations
             seatsContainer.innerHTML = '';
             (state.players || []).forEach(p => {
-                const pos = playerSeats[p.nickname] ?? 0;
-                const hasBet = p.round_bet > 0;
+                const pos    = playerSeats[p.nickname] ?? 0;
+                const newBet = p.round_bet || 0;
+                const oldBet = prevBets[p.nickname] || 0;
+                if (newBet > oldBet) {
+                    const chips = Math.max(1, Math.round((newBet - oldBet) / 20));
+                    flyChipsFromSeat(pos, chips);
+                    soundChip(chips);
+                    if (p.folded) soundFold();
+                }
+                prevBets[p.nickname] = newBet;
+
+                const hasBet   = p.round_bet > 0;
                 const isWinner = (state.winners || []).includes(p.nickname);
 
                 const seat = document.createElement('div');
@@ -526,11 +997,11 @@
                     <div class="seat-info">
                         <div class="seat-name">${esc(p.nickname)}</div>
                         <div class="seat-chips">&#9679; ${p.chips.toLocaleString()}</div>
-                        ${p.folded ? '<div style="font-size:0.75rem;color:var(--red);margin-top:3px;">Folded</div>' : ''}
+                        ${p.folded ? '<div style="font-size:0.65rem;color:#8c3a3a;margin-top:3px;letter-spacing:0.08em;text-transform:uppercase;">Folded</div>' : ''}
                     </div>
                 `;
 
-                // Hole cards (showdown)
+                // Hole cards at showdown
                 if (p.hand && p.hand.length > 0) {
                     const handRow = document.createElement('div');
                     handRow.className = 'seat-hand';
