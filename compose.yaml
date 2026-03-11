@@ -1,7 +1,6 @@
 services:
   royaltest:
-    build:
-      context: .
+    image: ghcr.io/idobaruch7/royaltest:nightly
     init: true
     ports:
       - '${ROYALTEST_PORT:-5000}:5000'
