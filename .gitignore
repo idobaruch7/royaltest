@@ -10,3 +10,5 @@ htmlcov/
 .venv/
 venv/
 .env
+AGENTS.md
+tests/
