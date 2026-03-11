@@ -302,17 +302,20 @@
             flex-direction: column;
             position: relative;
             overflow: hidden;
+            --action-inset: 112px;
         }
+        #game-screen.raise-open { --action-inset: min(48vh, 430px); }
 
         /* Felt area — top section */
         .felt-area {
             flex: 1;
             display: flex;
             flex-direction: column;
-            padding: 10px 12px 0;
+            padding: 10px 12px var(--action-inset);
             gap: 8px;
             min-height: 0;
             background: radial-gradient(ellipse at 50% 15%, #0e180c 0%, #070905 55%, var(--bg) 100%);
+            transition: padding-bottom 0.2s ease;
         }
 
         /* ── Status Banner ── */
@@ -433,11 +436,36 @@
             min-height: 0;
         }
 
+        #game-screen.raise-open .board-area {
+            flex-direction: row;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            padding-top: 2px;
+        }
+
         /* Community Cards */
         .community-cards {
             display: flex;
             gap: 5px;
             align-items: center;
+        }
+
+        #game-screen.raise-open .community-cards {
+            order: 2;
+            flex: 1 1 auto;
+            justify-content: flex-end;
+            gap: 0;
+            min-width: 0;
+            align-self: center;
+        }
+
+        #game-screen.raise-open .community-cards .card.small {
+            margin-left: -8px;
+        }
+
+        #game-screen.raise-open .community-cards .card.small:first-child {
+            margin-left: 0;
         }
 
         /* Hole Cards */
@@ -447,10 +475,36 @@
             align-items: center;
             gap: 10px;
         }
+
+        #game-screen.raise-open .hole-cards-wrapper {
+            order: 1;
+            flex: 0 0 38%;
+            align-items: flex-start;
+            gap: 0;
+            min-width: 0;
+            align-self: center;
+        }
+
         .hole-cards {
             display: flex;
             gap: 14px;
             align-items: flex-end;
+        }
+
+        #game-screen.raise-open .hole-cards {
+            gap: 8px;
+        }
+
+        #game-screen.raise-open .hole-cards .card:nth-child(1) {
+            transform: rotate(-4deg) translateY(2px);
+        }
+
+        #game-screen.raise-open .hole-cards .card:nth-child(2) {
+            transform: rotate(4deg) translateY(2px);
+        }
+
+        #game-screen.raise-open .hand-name {
+            display: none;
         }
         /* Elegant card fan */
         .hole-cards .card:nth-child(1) { transform: rotate(-5deg) translateY(4px); }
@@ -505,12 +559,25 @@
 
         /* Large — hole cards */
         .card.large { width: 90px; height: 128px; }
+
+        #game-screen.raise-open .card.large {
+            width: 68px;
+            height: 98px;
+        }
+
         .card.large .top-left {
             position: absolute; top: 6px; left: 7px;
             font-family: 'IBM Plex Mono', monospace;
             font-size: 23px; font-weight: 700; line-height: 1;
             text-shadow: 0 0 0.01px currentColor;
         }
+
+        #game-screen.raise-open .card.large .top-left {
+            top: 5px;
+            left: 5px;
+            font-size: 17px;
+        }
+
         .card.large .bottom-right {
             position: absolute; bottom: 6px; right: 7px;
             font-family: 'IBM Plex Mono', monospace;
@@ -518,10 +585,21 @@
             text-shadow: 0 0 0.01px currentColor;
             transform: rotate(180deg);
         }
+
+        #game-screen.raise-open .card.large .bottom-right {
+            bottom: 5px;
+            right: 5px;
+            font-size: 17px;
+        }
+
         .card.large .center {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             font-size: 46px; line-height: 1;
+        }
+
+        #game-screen.raise-open .card.large .center {
+            font-size: 36px;
         }
 
         /* Deal animation */
@@ -930,6 +1008,7 @@
 
     function setRaiseUiOpen(open) {
         actionPanel.classList.toggle('raise-open', open);
+        screens.game.classList.toggle('raise-open', open);
     }
 
     // ── Audio ────────────────────────────────────────────────────────────────
