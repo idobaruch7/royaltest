@@ -2,7 +2,7 @@ from server.game_engine import Card, Game, GameState
 from server.bot_player import Player
 
 
-class TestPlayer(Player):
+class StubPlayer(Player):
     def __init__(self, nickname: str, chips: int = 1000):
         super().__init__(nickname, chips)
         self.sid = nickname
@@ -10,7 +10,7 @@ class TestPlayer(Player):
 
 
 def make_game(chips):
-    players = [TestPlayer(f'P{i + 1}', stack) for i, stack in enumerate(chips)]
+    players = [StubPlayer(f'P{i + 1}', stack) for i, stack in enumerate(chips)]
     game = Game(players, small_blind=10, big_blind=20)
     game.start_hand()
     return game, players
@@ -61,7 +61,7 @@ def test_invalid_partial_raise_is_rejected():
 
 
 def test_side_pot_distribution_at_showdown():
-    players = [TestPlayer('P1', 0), TestPlayer('P2', 0), TestPlayer('P3', 0)]
+    players = [StubPlayer('P1', 0), StubPlayer('P2', 0), StubPlayer('P3', 0)]
     game = Game(players, small_blind=10, big_blind=20)
     game.pot = 750
     game.state = GameState.RIVER

@@ -1066,6 +1066,7 @@
     let callAmount = 0;
     let currentPot = 0;
     let currentTurnState = null;
+    let raiseStep = 1;
     let pendingJoinName = '';
     let hasTriedAutoJoin = false;
     const playerSessionId = getOrCreatePlayerSessionId();
@@ -1203,6 +1204,24 @@
         raiseBtnDisplay.textContent = display;
     }
 
+    function getRaiseStep(bigBlind, minTotal, maxTotal) {
+        const blind = Math.max(1, Number(bigBlind) || 1);
+        const span = Math.max(0, (Number(maxTotal) || 0) - (Number(minTotal) || 0));
+        if (span <= blind * 8) return 1;
+        if (span <= blind * 20) return Math.max(1, Math.floor(blind / 2));
+        return blind;
+    }
+
+    function snapRaiseValue(value, minTotal, maxTotal, step) {
+        const min = Number(minTotal) || 0;
+        const max = Number(maxTotal) || 0;
+        const size = Math.max(1, Number(step) || 1);
+        const bounded = Math.min(max, Math.max(min, Number(value) || min));
+        if (bounded === max) return max;
+        const snapped = min + Math.round((bounded - min) / size) * size;
+        return Math.min(max, Math.max(min, snapped));
+    }
+
     // ── Join ─────────────────────────────────────────────────────────────────
     function tryJoin() {
         const name = inputNickname.value.trim();
@@ -1215,7 +1234,20 @@
     inputNickname.addEventListener('keydown', e => { if (e.key === 'Enter') tryJoin(); });
 
     // ── Raise slider ─────────────────────────────────────────────────────────
-    raiseSlider.addEventListener('input', updateSliderFill);
+    raiseSlider.addEventListener('input', () => {
+        if (!currentTurnState || !currentTurnState.can_raise) {
+            updateSliderFill();
+            return;
+        }
+        const snapped = snapRaiseValue(
+            raiseSlider.value,
+            currentTurnState.min_raise_total,
+            currentTurnState.max_total,
+            raiseStep,
+        );
+        raiseSlider.value = snapped;
+        updateSliderFill();
+    });
 
     document.querySelectorAll('.quick-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1223,7 +1255,7 @@
             const target = Math.round(currentPot * frac);
             const min    = parseInt(raiseSlider.min, 10);
             const max    = parseInt(raiseSlider.max, 10);
-            raiseSlider.value = Math.min(max, Math.max(min, target));
+            raiseSlider.value = snapRaiseValue(target, min, max, raiseStep);
             updateSliderFill();
         });
     });
@@ -1326,17 +1358,21 @@
         const maxTotal = d.max_total || 0;
         const canRaise = !!d.can_raise;
         const canShortAllIn = !!d.can_short_all_in;
+        raiseStep = getRaiseStep(d.big_blind || 1, minTotal, maxTotal);
 
         raiseSlider.min = Math.min(minTotal, maxTotal);
         raiseSlider.max = maxTotal;
-        raiseSlider.value = Math.min(minTotal, maxTotal);
+        raiseSlider.step = raiseStep;
+        raiseSlider.value = snapRaiseValue(minTotal, minTotal, maxTotal, raiseStep);
         raiseSlider.disabled = !canRaise;
         btnRaise.disabled = !(canRaise || canShortAllIn);
         raiseBtnLabel.textContent = canRaise ? 'Raise' : (canShortAllIn ? 'All-in' : 'Raise');
         btnRaiseConfirm.textContent = canRaise ? 'Confirm Raise' : 'Confirm';
         if (!canRaise) setRaiseUiOpen(false);
 
-        sliderMinLbl.textContent = canRaise ? `Min ${fmt(minTotal)}` : 'Full raise unavailable';
+        sliderMinLbl.textContent = canRaise
+            ? `Min ${fmt(minTotal)} · Step ${fmt(raiseStep)}`
+            : 'Full raise unavailable';
         sliderMaxLbl.textContent = `All-in ${fmt(maxTotal)}`;
         if (canRaise) {
             updateSliderFill();

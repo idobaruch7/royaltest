@@ -73,6 +73,8 @@ def on_disconnect():
     _broadcast_queue()
 
     if current_game:
+        if _finish_game_if_too_few_connected():
+            return
         _process_automatic_turns()
         _broadcast_game_state()
 
@@ -147,7 +149,7 @@ def on_join_game(data):
 def on_start_game():
     global current_game, session_to_player, game_active
 
-    players_list = _lobby_players()
+    players_list = _connected_lobby_players()
     if len(players_list) < 2:
         emit('start_error', {'message': 'Need at least 2 players to start.'})
         return
@@ -158,7 +160,7 @@ def on_start_game():
     players = []
     session_to_player = {}
     for session_id, info in session_players.items():
-        if info['state'] != 'lobby':
+        if info['state'] != 'lobby' or not info['is_connected']:
             continue
         info['state'] = 'game'
         p = HumanPlayer(info['nickname'], session_id, info['sid'], info['chips'])
@@ -198,12 +200,7 @@ def on_next_hand():
 
     _flush_queue()
 
-    alive = [p for p in current_game.players if p.chips > 0]
-    if len(alive) < 2:
-        socketio.emit('game_finished', {
-            'winner': alive[0].nickname if alive else None
-        })
-        _end_game_session()
+    if _finish_game_if_too_few_connected():
         return
 
     current_game.next_hand()
@@ -223,9 +220,13 @@ def _flush_queue():
 
     from bot_player import HumanPlayer
 
+    remaining_queue = []
     for session_id in join_queue:
         info = session_players.get(session_id)
         if not info:
+            continue
+        if not info['is_connected']:
+            remaining_queue.append(session_id)
             continue
         info['state'] = 'game'
         p = HumanPlayer(info['nickname'], session_id, info['sid'], info['chips'])
@@ -236,7 +237,7 @@ def _flush_queue():
             socketio.emit('game_starting', {}, to=info['sid'])
         print(f'[queue->game] {info["nickname"]}')
 
-    join_queue = []
+    join_queue = remaining_queue
     _broadcast_queue()
     _broadcast_lobby()
 
@@ -341,6 +342,7 @@ def _notify_current_player():
         return
     socketio.emit('your_turn', {
         **current_game.legal_actions_for(player),
+        'big_blind': current_game.big_blind,
         'pot': current_game.pot,
     }, to=player.sid)
 
@@ -364,6 +366,31 @@ def _broadcast_hand_over():
 
 def _lobby_players():
     return [info for info in session_players.values() if info['state'] == 'lobby']
+
+
+def _connected_lobby_players():
+    return [info for info in _lobby_players() if info['is_connected']]
+
+
+def _connected_game_players():
+    if not current_game:
+        return []
+    return [
+        player for player in current_game.players
+        if getattr(player, 'is_connected', True) and player.chips > 0
+    ]
+
+
+def _finish_game_if_too_few_connected() -> bool:
+    connected_players = _connected_game_players()
+    if len(connected_players) >= 2:
+        return False
+
+    socketio.emit('game_finished', {
+        'winner': connected_players[0].nickname if len(connected_players) == 1 else None
+    })
+    _end_game_session()
+    return True
 
 
 def _lobby_snapshot():
