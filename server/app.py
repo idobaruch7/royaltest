@@ -25,7 +25,7 @@ join_queue = []           # [session_id] players waiting to join next hand
 
 @app.route('/')
 def index():
-    return '<h2>RoyalTest</h2><a href="/host">Host Game</a> | <a href="/join">Join Game</a>'
+    return send_from_directory(PUBLIC_DIR, 'index.html')
 
 
 @app.route('/host')

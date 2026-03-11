@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoyalTest</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #040705;
+            --felt-dark: #0c1e14;
+            --felt-mid: #153020;
+            --felt-light: #1b4030;
+            --gold: #b89458;
+            --gold-bright: #d4a868;
+            --text: #ccc2ac;
+            --text-muted: #706050;
+            --radius: 14px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            min-height: 100vh;
+            font-family: 'IBM Plex Mono', monospace;
+            color: var(--text);
+            background: radial-gradient(ellipse at 50% 52%, var(--felt-light) 0%, var(--felt-mid) 28%, var(--felt-dark) 58%, #060e09 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 28px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Cpath d='M0 0L14 14M14 0L0 14' stroke='rgba(255,255,255,0.03)' stroke-width='0.55'/%3E%3C/svg%3E");
+            pointer-events: none;
+            opacity: 0.75;
+        }
+
+        .panel {
+            width: min(820px, 100%);
+            background: rgba(3, 6, 4, 0.72);
+            border: 1px solid rgba(184,148,88,0.35);
+            border-radius: 22px;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.72);
+            backdrop-filter: blur(7px);
+            padding: 46px 34px 34px;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(3.2rem, 8vw, 5.2rem);
+            font-weight: 700;
+            color: var(--gold);
+            letter-spacing: 0.04em;
+            line-height: 1;
+            text-shadow: 0 4px 28px rgba(184,148,88,0.26), 0 2px 4px rgba(0,0,0,0.7);
+        }
+
+        .tagline {
+            margin-top: 10px;
+            font-size: clamp(0.88rem, 1.8vw, 1.06rem);
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .actions {
+            margin-top: 36px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .nav-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 106px;
+            border-radius: var(--radius);
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(2rem, 4vw, 2.8rem);
+            font-weight: 700;
+            text-decoration: none;
+            letter-spacing: 0.03em;
+            transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+        }
+
+        .nav-btn.host {
+            background: linear-gradient(160deg, #d4a868 0%, #b89458 100%);
+            color: #111;
+            box-shadow: 0 8px 28px rgba(184,148,88,0.35);
+        }
+
+        .nav-btn.join {
+            background: linear-gradient(160deg, #233a2e 0%, #16261d 100%);
+            border: 1px solid rgba(184,148,88,0.3);
+            color: var(--ivory, #e8e2d4);
+            box-shadow: 0 8px 28px rgba(0,0,0,0.42);
+        }
+
+        .nav-btn:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.04);
+        }
+
+        .nav-btn:active { transform: translateY(0); }
+
+        @media (max-width: 720px) {
+            .actions { grid-template-columns: 1fr; }
+            .nav-btn { min-height: 94px; }
+        }
+    </style>
+</head>
+<body>
+    <main class="panel">
+        <h1 class="logo">♠ RoyalTest</h1>
+        <p class="tagline">Private Texas Hold'em</p>
+        <div class="actions">
+            <a class="nav-btn host" href="/host">Host</a>
+            <a class="nav-btn join" href="/join">Join</a>
+        </div>
+    </main>
+</body>
+</html>

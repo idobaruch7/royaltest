@@ -347,6 +347,28 @@
             color: var(--gold-bright);
         }
 
+        .sound-toggle {
+            align-self: flex-end;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            background: rgba(0,0,0,0.45);
+            color: var(--ivory-dim);
+            padding: 5px 12px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.66rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            margin-top: -2px;
+            flex-shrink: 0;
+        }
+        .sound-toggle.active {
+            color: var(--gold-bright);
+            border-color: var(--gold);
+            background: rgba(196,151,90,0.08);
+        }
+
         /* ── Mini Players Strip ── */
         .mini-players {
             display: flex;
@@ -949,6 +971,7 @@
 
     <div class="felt-area">
         <div id="status-banner" class="status-banner">Waiting…</div>
+        <button id="sound-toggle" class="sound-toggle" type="button">Sound On</button>
 
         <div id="mini-players" class="mini-players"></div>
 
@@ -1037,6 +1060,7 @@
     const myBadge          = document.getElementById('my-badge');
     const lobbyList        = document.getElementById('lobby-list');
     const statusBanner     = document.getElementById('status-banner');
+    const soundToggle      = document.getElementById('sound-toggle');
     const miniPlayers      = document.getElementById('mini-players');
     const infoPot          = document.getElementById('info-pot');
     const infoBet          = document.getElementById('info-bet');
@@ -1065,6 +1089,7 @@
     let myChips    = 1000;
     let callAmount = 0;
     let currentPot = 0;
+    let soundEnabled = true;
     let currentTurnState = null;
     let raiseStep = 1;
     let pendingJoinName = '';
@@ -1074,6 +1099,11 @@
     function setRaiseUiOpen(open) {
         actionPanel.classList.toggle('raise-open', open);
         screens.game.classList.toggle('raise-open', open);
+    }
+
+    function applySoundMode() {
+        soundToggle.classList.toggle('active', soundEnabled);
+        soundToggle.textContent = soundEnabled ? 'Sound On' : 'Muted';
     }
 
     // ── Audio ────────────────────────────────────────────────────────────────
@@ -1086,6 +1116,7 @@
     document.addEventListener('click',      _ctx, { once: true });
 
     function _tone(freq, dur, type = 'sine', vol = 0.3, delay = 0) {
+        if (!soundEnabled) return;
         try {
             const ctx  = _ctx();
             const osc  = ctx.createOscillator();
@@ -1118,6 +1149,15 @@
         Object.values(screens).forEach(s => s.classList.remove('active'));
         screens[name].classList.add('active');
     }
+
+    const savedPlayerSound = localStorage.getItem('player_sound_enabled');
+    soundEnabled = savedPlayerSound === null ? true : savedPlayerSound === '1';
+    applySoundMode();
+    soundToggle.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        localStorage.setItem('player_sound_enabled', soundEnabled ? '1' : '0');
+        applySoundMode();
+    });
 
     function getOrCreatePlayerSessionId() {
         try {
