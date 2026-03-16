@@ -5,6 +5,12 @@ RoyalTest is a browser-based, private Texas Hold'em game with:
 - a host screen (`/host`) for table control and game flow
 - a player screen (`/join`) for mobile-friendly actions
 - real-time updates powered by Flask-SocketIO
+<div align="center">
+  
+<img width="800" height="650" alt="Screenshot_20260316_235802" src="https://github.com/user-attachments/assets/b11df972-fc81-4983-b3e7-34c141be5055" />
+<img width="305" height="520" alt="Screenshot_20260316_235802" src="https://github.com/user-attachments/assets/e4e0eadd-a105-4ebf-8357-be83e830e05b" />
+
+</div>
 
 ## Quick Start
 
