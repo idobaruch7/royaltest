@@ -14,6 +14,8 @@ RoyalTest is a browser-based, private Texas Hold'em game with:
 
 ## Quick Start (Docker)
 
+Pulls the pre-built image from GitHub Container Registry and runs it locally. No cloning required.
+
 ```bash
 docker pull ghcr.io/idobaruch7/royaltest:nightly
 docker run --rm -p 5000:5000 ghcr.io/idobaruch7/royaltest:nightly
@@ -29,7 +31,11 @@ If players join from other devices on your network, use your computer's LAN IP i
 
 ## Docker Compose
 
+Clone the repo, then build and run from source:
+
 ```bash
+git clone https://github.com/idobaruch7/royaltest.git
+cd royaltest
 docker compose up --build
 ```
 
