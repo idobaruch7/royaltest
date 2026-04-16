@@ -929,9 +929,32 @@
             border: 1px solid rgba(45,90,30,0.45);
             box-shadow: 0 4px 14px rgba(30,61,18,0.5);
         }
+
+        .orientation-lock-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 10001;
+            padding: 24px;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background: radial-gradient(ellipse at 50% 40%, #1c1108 0%, #080705 72%);
+            color: var(--ivory);
+            font-family: 'IBM Plex Mono', monospace;
+            letter-spacing: 0.04em;
+            font-size: 0.88rem;
+            line-height: 1.6;
+        }
+        body.landscape-disabled .orientation-lock-overlay { display: flex; }
+        body.landscape-disabled .screen { pointer-events: none; visibility: hidden; }
     </style>
 </head>
 <body>
+
+<div id="orientation-lock-overlay" class="orientation-lock-overlay" role="alert" aria-live="assertive">
+    Please rotate your phone to portrait mode.
+</div>
 
 <!-- ── SCREEN: JOIN ── -->
 <div id="join-screen" class="screen active">
@@ -1082,6 +1105,7 @@
     const raiseBtnLabel    = btnRaise.querySelector('.act-btn-label');
     const btnRaiseCancel   = document.getElementById('btn-raise-cancel');
     const btnRaiseConfirm  = document.getElementById('btn-raise-confirm');
+    const orientationLockOverlay = document.getElementById('orientation-lock-overlay');
     const PLAYER_SESSION_KEY = 'royaltest.playerSessionId';
     const PLAYER_NICKNAME_KEY = 'royaltest.playerNickname';
 
@@ -1095,6 +1119,26 @@
     let pendingJoinName = '';
     let hasTriedAutoJoin = false;
     const playerSessionId = getOrCreatePlayerSessionId();
+    const prefersCoarsePointer = window.matchMedia('(pointer: coarse)');
+    const isLandscape = window.matchMedia('(orientation: landscape)');
+
+    async function tryLockPortrait() {
+        if (screen.orientation && typeof screen.orientation.lock === 'function') {
+            try { await screen.orientation.lock('portrait'); } catch { /* best-effort only */ }
+        }
+    }
+
+    function updateOrientationGuard() {
+        const isTouchDevice = prefersCoarsePointer.matches || navigator.maxTouchPoints > 0;
+        const shouldBlock = isTouchDevice && isLandscape.matches;
+        document.body.classList.toggle('landscape-disabled', shouldBlock);
+    }
+
+    tryLockPortrait();
+    updateOrientationGuard();
+    isLandscape.addEventListener('change', updateOrientationGuard);
+    prefersCoarsePointer.addEventListener('change', updateOrientationGuard);
+    window.addEventListener('resize', updateOrientationGuard);
 
     function setRaiseUiOpen(open) {
         actionPanel.classList.toggle('raise-open', open);
