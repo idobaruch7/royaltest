@@ -952,7 +952,7 @@
 </head>
 <body>
 
-<div id="orientation-lock-overlay" class="orientation-lock-overlay">
+<div id="orientation-lock-overlay" class="orientation-lock-overlay" role="alert" aria-live="assertive">
     Please rotate your phone to portrait mode.
 </div>
 
@@ -1120,35 +1120,24 @@
     let hasTriedAutoJoin = false;
     const playerSessionId = getOrCreatePlayerSessionId();
     const prefersCoarsePointer = window.matchMedia('(pointer: coarse)');
-    const isTouchDevice = prefersCoarsePointer.matches || navigator.maxTouchPoints > 0;
     const isLandscape = window.matchMedia('(orientation: landscape)');
 
     async function tryLockPortrait() {
         if (screen.orientation && typeof screen.orientation.lock === 'function') {
-            try { await screen.orientation.lock('portrait'); } catch {}
+            try { await screen.orientation.lock('portrait'); } catch { /* best-effort only */ }
         }
     }
 
     function updateOrientationGuard() {
+        const isTouchDevice = prefersCoarsePointer.matches || navigator.maxTouchPoints > 0;
         const shouldBlock = isTouchDevice && isLandscape.matches;
         document.body.classList.toggle('landscape-disabled', shouldBlock);
-        orientationLockOverlay.setAttribute('aria-hidden', shouldBlock ? 'false' : 'true');
-    }
-
-    function onMediaQueryChange(mq, handler) {
-        if (typeof mq.addEventListener === 'function') {
-            mq.addEventListener('change', handler);
-            return;
-        }
-        if (typeof mq.addListener === 'function') {
-            mq.addListener(handler);
-        }
     }
 
     tryLockPortrait();
     updateOrientationGuard();
-    onMediaQueryChange(isLandscape, updateOrientationGuard);
-    onMediaQueryChange(prefersCoarsePointer, updateOrientationGuard);
+    isLandscape.addEventListener('change', updateOrientationGuard);
+    prefersCoarsePointer.addEventListener('change', updateOrientationGuard);
     window.addEventListener('resize', updateOrientationGuard);
 
     function setRaiseUiOpen(open) {
