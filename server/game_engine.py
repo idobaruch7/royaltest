@@ -538,6 +538,7 @@ class Game:
         """Serialize game state. Hide opponents' hole cards except at showdown."""
         current = self._current_player()
         players_out = []
+        showdown_players_count = sum(1 for p in self.players if not p.folded)
 
         for i, p in enumerate(self.players):
             entry = {
@@ -555,7 +556,7 @@ class Game:
             }
 
             show_hand = (
-                self.state == GameState.SHOWDOWN and not p.folded
+                self.state == GameState.SHOWDOWN and showdown_players_count > 1 and not p.folded
             ) or (
                 for_sid is not None and hasattr(p, 'sid') and p.sid == for_sid
             )
