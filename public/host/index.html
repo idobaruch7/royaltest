@@ -39,10 +39,13 @@
         }
 
         #host-root {
-            width: 100vw;
-            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: calc(100vw / var(--host-scale));
+            height: calc(100vh / var(--host-scale));
             transform: scale(var(--host-scale));
-            transform-origin: center center;
+            transform-origin: top left;
         }
 
         /* Grain overlay */
