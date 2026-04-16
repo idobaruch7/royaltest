@@ -81,8 +81,8 @@ ROYALTEST_SECRET_KEY="change-me" ROYALTEST_DEBUG=1 python3 server/app.py
 
 ## Gameplay Flow
 
-1. Open `/host` on the main display.
-2. Players join from their phones using `/join`.
+1. Open `/host` on the main display (a unique table code is generated).
+2. Players join from their phones using `/join` and enter that table code.
 3. Host starts the game when enough players are seated.
 4. New joiners during a hand are queued for the next hand.
 
