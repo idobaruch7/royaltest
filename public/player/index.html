@@ -293,6 +293,20 @@
         .lobby-item:last-child { border-bottom: none; }
         .lobby-item.me { color: var(--gold); }
         .lobby-item .l-chips { color: var(--ivory-dim); font-size: 0.82rem; font-weight: 600; }
+        .lobby-main { display: flex; align-items: center; gap: 8px; }
+        .kick-btn {
+            border: 1px solid rgba(192,80,80,0.5);
+            border-radius: 999px;
+            background: rgba(192,80,80,0.12);
+            color: #ff9e9e;
+            font-size: 0.64rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 4px 8px;
+            cursor: pointer;
+        }
+        .kick-btn:hover { background: rgba(192,80,80,0.2); }
 
         /* ─────────────────────────────── */
         /* GAME SCREEN                     */
@@ -403,6 +417,18 @@
         .mini-player .mp-bet   { color: var(--gold); font-size: 0.78rem; font-weight: 700; }
         .mini-player .mp-fold  { color: #c05050; font-size: 0.74rem; font-weight: 700; }
         .mini-player .mp-tags  { display: flex; gap: 3px; margin-top: 1px; }
+        .mini-player .mp-kick-wrap { margin-top: 4px; }
+        .mini-player .mp-kick {
+            border: 1px solid rgba(192,80,80,0.5);
+            border-radius: 999px;
+            background: rgba(192,80,80,0.12);
+            color: #ff9e9e;
+            font-size: 0.56rem;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            padding: 2px 7px;
+        }
         .mp-tag {
             font-size: 0.52rem;
             border-radius: 3px;
@@ -1118,6 +1144,7 @@
     let raiseStep = 1;
     let pendingJoinName = '';
     let hasTriedAutoJoin = false;
+    let tableOwnerNickname = '';
     const playerSessionId = getOrCreatePlayerSessionId();
     const prefersCoarsePointer = window.matchMedia('(pointer: coarse)');
     const isLandscape = window.matchMedia('(orientation: landscape)');
@@ -1382,6 +1409,16 @@
         setStatus('result', esc(d.message || 'Illegal action.'));
         actionPanel.classList.add('active');
     });
+    socket.on('kick_error', (d) => {
+        setStatus('result', esc(d.message || 'Unable to kick player.'));
+    });
+    socket.on('kicked', (d) => {
+        currentTurnState = null;
+        setRaiseUiOpen(false);
+        actionPanel.classList.remove('active');
+        setStatus('result', esc(d.message || 'You were removed from the table.'));
+        showScreen('join');
+    });
 
     socket.on('join_queued', (d) => {
         applyPlayerIdentity(d.nickname, d.chips);
@@ -1400,10 +1437,14 @@
     });
 
     socket.on('lobby_update', (players) => {
+        const owner = (players || []).find(p => p.is_table_owner);
+        tableOwnerNickname = owner ? owner.nickname : '';
+        const canKick = !!myNickname && myNickname === tableOwnerNickname;
         lobbyList.innerHTML = players.map(p => `
             <div class="lobby-item ${p.nickname === myNickname ? 'me' : ''}">
-                <span>${esc(p.nickname)}${p.nickname === myNickname ? ' <span style="color:var(--ivory-dim);font-size:0.7em;">(you)</span>' : ''}</span>
+                <span class="lobby-main">${esc(p.nickname)}${p.nickname === myNickname ? ' <span style="color:var(--ivory-dim);font-size:0.7em;">(you)</span>' : ''}${p.is_table_owner ? ' <span style="color:var(--gold-bright);font-size:0.7em;">(owner)</span>' : ''}</span>
                 <span class="l-chips">⬤ ${fmt(p.chips)}</span>
+                ${canKick && p.nickname !== myNickname ? `<button class="kick-btn" data-kick="${esc(p.nickname)}">Kick</button>` : ''}
             </div>`).join('');
     });
 
@@ -1465,12 +1506,18 @@
             setRaiseSummary(maxTotal);
         }
 
-        setStatus('my-turn', '▶ Your turn');
+        const timeoutText = d.turn_timeout_seconds ? ` (${d.turn_timeout_seconds}s)` : '';
+        setStatus('my-turn', `▶ Your turn${timeoutText}`);
         setRaiseUiOpen(false);
         actionPanel.classList.add('active');
     });
 
-    socket.on('game_state', (state) => { renderState(state); });
+    socket.on('game_state', (state) => {
+        if (state && state.table_owner_nickname) {
+            tableOwnerNickname = state.table_owner_nickname;
+        }
+        renderState(state);
+    });
 
     socket.on('hand_over', (d) => {
         currentTurnState = null;
@@ -1505,6 +1552,7 @@
 
     // ── Render ────────────────────────────────────────────────────────────────
     function renderState(state) {
+        const canKick = !!myNickname && myNickname === tableOwnerNickname;
         infoPot.textContent = fmt(state.pot || 0);
         infoBet.textContent = fmt(state.current_bet || 0);
         currentPot = state.pot || 0;
@@ -1548,6 +1596,7 @@
                 ${p.all_in ? '<div class="mp-fold">all-in</div>' : ''}
                 ${p.round_bet > 0 ? `<div class="mp-bet">bet ${fmt(p.round_bet)}</div>` : ''}
                 ${p.folded ? '<div class="mp-fold">folded</div>' : ''}
+                ${canKick ? `<div class="mp-kick-wrap"><button class="mp-kick" data-kick="${esc(p.nickname)}">Kick</button></div>` : ''}
             `;
             miniPlayers.appendChild(mp);
         });
@@ -1560,6 +1609,22 @@
             }
         }
     }
+
+    lobbyList.addEventListener('click', (event) => {
+        const btn = event.target.closest('[data-kick]');
+        if (!btn) return;
+        const nickname = btn.getAttribute('data-kick');
+        if (!nickname) return;
+        socket.emit('kick_player', { nickname });
+    });
+
+    miniPlayers.addEventListener('click', (event) => {
+        const btn = event.target.closest('[data-kick]');
+        if (!btn) return;
+        const nickname = btn.getAttribute('data-kick');
+        if (!nickname) return;
+        socket.emit('kick_player', { nickname });
+    });
 </script>
 </body>
 </html>

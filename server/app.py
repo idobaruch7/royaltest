@@ -19,6 +19,13 @@ current_game = None       # Game instance (active during a game session)
 session_to_player = {}    # session_id -> HumanPlayer (during game)
 game_active = False
 join_queue = []           # [session_id] players waiting to join next hand
+turn_timeout_token = 0
+join_sequence = 0
+
+try:
+    TURN_TIMEOUT_SECONDS = max(1, int(os.getenv('ROYALTEST_TURN_TIMEOUT_SECONDS', '20')))
+except ValueError:
+    TURN_TIMEOUT_SECONDS = 20
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -73,9 +80,6 @@ def on_disconnect():
     _broadcast_queue()
 
     if current_game:
-        if _finish_game_if_too_few_connected():
-            return
-        _process_automatic_turns()
         _broadcast_game_state()
 
 
@@ -90,6 +94,7 @@ def on_host_connected():
 
 @socketio.on('join_game')
 def on_join_game(data):
+    global join_sequence
     nickname = (data.get('nickname') or '').strip()
     session_id = (data.get('session_id') or '').strip()
 
@@ -129,7 +134,9 @@ def on_join_game(data):
         'sid': None,
         'is_connected': False,
         'state': 'lobby',
+        'join_order': join_sequence,
     }
+    join_sequence += 1
     _attach_session_to_sid(session_id, _request_sid())
 
     if game_active:
@@ -200,14 +207,51 @@ def on_next_hand():
 
     _flush_queue()
 
-    if _finish_game_if_too_few_connected():
-        return
-
     current_game.next_hand()
     _sync_all_game_player_chips()
     _broadcast_game_state()
     _send_private_hands()
     _process_automatic_turns()
+
+
+@socketio.on('kick_player')
+def on_kick_player(data):
+    requester_session_id = sid_to_session.get(_request_sid())
+    if not requester_session_id:
+        return
+
+    if requester_session_id != _table_owner_session_id():
+        emit('kick_error', {'message': 'Only the first player to join can kick players.'})
+        return
+
+    target_nickname = (data.get('nickname') or '').strip()
+    if not target_nickname:
+        emit('kick_error', {'message': 'Missing player to kick.'})
+        return
+
+    target_session_id = None
+    for session_id, info in session_players.items():
+        if info['nickname'] == target_nickname:
+            target_session_id = session_id
+            break
+
+    if not target_session_id:
+        emit('kick_error', {'message': 'Player not found.'})
+        return
+    if target_session_id == requester_session_id:
+        emit('kick_error', {'message': 'You cannot kick yourself.'})
+        return
+
+    kicked = _kick_player(target_session_id)
+    if not kicked:
+        emit('kick_error', {'message': 'Unable to kick player.'})
+        return
+
+    _broadcast_lobby()
+    _broadcast_queue()
+    if current_game:
+        _broadcast_game_state()
+        _process_automatic_turns()
 
 
 # ── Game helpers ──────────────────────────────────────────────────────────────
@@ -247,6 +291,7 @@ def _apply_and_advance(sid, action: str, amount: int):
     if not current_game:
         return
 
+    _invalidate_turn_timeout()
     _, event = current_game.apply_action(sid, action, amount)
     _sync_all_game_player_chips()
     _broadcast_game_state()
@@ -266,7 +311,7 @@ def _apply_and_advance(sid, action: str, amount: int):
 
 
 def _process_automatic_turns():
-    """Run bot turns and disconnected human turns until a connected human needs to act."""
+    """Run bot turns and forced auto turns until a human decision is needed."""
     from bot_player import BotPlayer, HumanPlayer
 
     while current_game and current_game.state.value not in ('waiting', 'showdown'):
@@ -294,7 +339,7 @@ def _process_automatic_turns():
                 return
             continue
 
-        if isinstance(player, HumanPlayer) and not player.is_connected:
+        if isinstance(player, HumanPlayer) and getattr(player, 'force_auto', False):
             call_amount = current_game.current_bet - getattr(player, 'round_bet', 0)
             action = 'check' if call_amount <= 0 else 'fold'
             print(f'[auto_{action}] {player.nickname}')
@@ -314,7 +359,9 @@ def _process_automatic_turns():
 def _broadcast_game_state():
     if not current_game:
         return
-    socketio.emit('game_state', current_game.to_dict())
+    state = current_game.to_dict()
+    state['table_owner_nickname'] = _table_owner_nickname()
+    socketio.emit('game_state', state)
 
 
 def _send_private_hands():
@@ -338,12 +385,17 @@ def _notify_current_player():
     if not current_game:
         return
     player = current_game.current_player()
-    if player is None or not hasattr(player, 'sid') or player.sid is None:
+    if player is None:
+        return
+    token = _invalidate_turn_timeout()
+    _start_turn_timeout(player, token)
+    if not hasattr(player, 'sid') or player.sid is None:
         return
     socketio.emit('your_turn', {
         **current_game.legal_actions_for(player),
         'big_blind': current_game.big_blind,
         'pot': current_game.pot,
+        'turn_timeout_seconds': TURN_TIMEOUT_SECONDS,
     }, to=player.sid)
 
 
@@ -394,11 +446,13 @@ def _finish_game_if_too_few_connected() -> bool:
 
 
 def _lobby_snapshot():
+    owner_session_id = _table_owner_session_id()
     return [
         {
             'nickname': info['nickname'],
             'chips': info['chips'],
             'is_connected': info['is_connected'],
+            'is_table_owner': info['session_id'] == owner_session_id,
         }
         for info in _lobby_players()
     ]
@@ -474,7 +528,9 @@ def _emit_session_state(session_id: str):
     if current_game and session_id in session_to_player:
         player = session_to_player[session_id]
         emit('game_starting', {})
-        emit('game_state', current_game.to_dict(for_sid=player.sid))
+        game_state = current_game.to_dict(for_sid=player.sid)
+        game_state['table_owner_nickname'] = _table_owner_nickname()
+        emit('game_state', game_state)
         _send_private_hand(player)
         if current_game.current_player() is player:
             _notify_current_player()
@@ -490,6 +546,7 @@ def _queue_position(session_id: str) -> int:
 def _end_game_session():
     global current_game, session_to_player, game_active, join_queue
 
+    _invalidate_turn_timeout()
     game_active = False
     current_game = None
     session_to_player = {}
@@ -515,6 +572,91 @@ def _get_local_ip():
 
 def _request_sid() -> str:
     return str(getattr(request, 'sid', ''))
+
+
+def _invalidate_turn_timeout() -> int:
+    global turn_timeout_token
+    turn_timeout_token += 1
+    return turn_timeout_token
+
+
+def _start_turn_timeout(player, token: int):
+    from bot_player import HumanPlayer
+
+    if not isinstance(player, HumanPlayer):
+        return
+    session_id = getattr(player, 'session_id', None)
+    if not session_id:
+        return
+    socketio.start_background_task(_handle_turn_timeout, token, session_id)
+
+
+def _handle_turn_timeout(token: int, session_id: str):
+    socketio.sleep(TURN_TIMEOUT_SECONDS)
+
+    if token != turn_timeout_token:
+        return
+    if not current_game or not game_active:
+        return
+
+    player = current_game.current_player()
+    if player is None or getattr(player, 'session_id', None) != session_id:
+        return
+
+    call_amount = current_game.current_bet - getattr(player, 'round_bet', 0)
+    action = 'check' if call_amount <= 0 else 'fold'
+    print(f'[turn_timeout_auto_{action}] {player.nickname}')
+    _apply_and_advance(None, action, 0)
+
+
+def _table_owner_session_id():
+    if not session_players:
+        return None
+    return min(
+        session_players.items(),
+        key=lambda item: item[1].get('join_order', 0),
+    )[0]
+
+
+def _table_owner_nickname():
+    owner_session_id = _table_owner_session_id()
+    if not owner_session_id:
+        return None
+    owner = session_players.get(owner_session_id)
+    return owner['nickname'] if owner else None
+
+
+def _kick_player(session_id: str) -> bool:
+    info = session_players.get(session_id)
+    if not info:
+        return False
+
+    target_sid = info.get('sid')
+    if target_sid:
+        socketio.emit('kicked', {'message': 'You were removed from the table.'}, to=target_sid)
+        sid_to_session.pop(target_sid, None)
+
+    if session_id in join_queue:
+        join_queue.remove(session_id)
+
+    player = session_to_player.pop(session_id, None)
+    del session_players[session_id]
+
+    if not player or not current_game:
+        return True
+
+    player.sid = None
+    player.is_connected = False
+    player.force_auto = True
+    player.chips = 0
+
+    current = current_game.current_player()
+    if current is player and current_game.state.value not in ('waiting', 'showdown'):
+        call_amount = current_game.current_bet - getattr(player, 'round_bet', 0)
+        action = 'check' if call_amount <= 0 else 'fold'
+        _apply_and_advance(None, action, 0)
+
+    return True
 
 
 # ── Entry Point ───────────────────────────────────────────────────────────────
