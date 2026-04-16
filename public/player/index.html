@@ -1209,13 +1209,11 @@
         } catch (_) {}
     }
 
-    function onImmersiveRetryClick() {
-        enterImmersiveMode();
-    }
+    const immersiveRetryListenerOptions = { passive: true };
 
     function toggleImmersiveRetryListener(enabled) {
         const method = enabled ? 'addEventListener' : 'removeEventListener';
-        document[method]('click', onImmersiveRetryClick, { passive: true });
+        document[method]('click', enterImmersiveMode, immersiveRetryListenerOptions);
     }
 
     const savedPlayerSound = localStorage.getItem('player_sound_enabled');
