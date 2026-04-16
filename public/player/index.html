@@ -1321,7 +1321,7 @@
     btnJoin.addEventListener('click', tryJoin);
     inputNickname.addEventListener('keydown', e => { if (e.key === 'Enter') tryJoin(); });
     btnStartGame.addEventListener('click', () => {
-        if (!canStartGame || btnStartGame.disabled) return;
+        if (!canStartGame) return;
         socket.emit('start_game');
     });
 

@@ -526,13 +526,14 @@ def _cancel_auto_next_hand():
     auto_next_hand_generation += 1
 
 
-def _schedule_auto_next_hand(delay_seconds: float = AUTO_NEXT_HAND_DELAY_SECONDS):
+def _schedule_auto_next_hand(delay_seconds: float | None = None):
     global auto_next_hand_generation
     auto_next_hand_generation += 1
     generation = auto_next_hand_generation
+    delay = AUTO_NEXT_HAND_DELAY_SECONDS if delay_seconds is None else delay_seconds
 
     def _run():
-        socketio.sleep(delay_seconds)
+        socketio.sleep(delay)
         if generation != auto_next_hand_generation:
             return
         if not current_game or not game_active:
