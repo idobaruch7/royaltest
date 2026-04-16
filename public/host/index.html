@@ -858,7 +858,11 @@
 
         function enterImmersiveMode() {
             const root = document.documentElement;
-            const requestFullscreen = root.requestFullscreen || root.webkitRequestFullscreen;
+            const requestFullscreen =
+                root.requestFullscreen ||
+                root.webkitRequestFullscreen ||
+                root.mozRequestFullScreen ||
+                root.msRequestFullscreen;
             if (document.fullscreenElement || typeof requestFullscreen !== 'function') return;
             try {
                 const maybePromise = requestFullscreen.call(root, { navigationUI: 'hide' });
