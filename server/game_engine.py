@@ -538,7 +538,9 @@ class Game:
         """Serialize game state. Hide opponents' hole cards except at showdown."""
         current = self._current_player()
         players_out = []
-        showdown_players_count = sum(1 for p in self.players if not p.folded)
+        showdown_players_count = (
+            sum(1 for p in self.players if not p.folded) if self.state == GameState.SHOWDOWN else 0
+        )
 
         for i, p in enumerate(self.players):
             entry = {
