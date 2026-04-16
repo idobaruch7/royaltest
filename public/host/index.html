@@ -935,6 +935,20 @@
             const winners = data.winners || [];
             if (!lowPerfMode) {
                 soundWin();
+                const totalPotAtShowdown = prevPot > 0 ? prevPot : (data.game_state ? (data.game_state.pot || 0) : 0);
+                if (totalPotAtShowdown > 0 && winners.length > 0) {
+                    const chipsPerWinner = Math.max(1, Math.round((totalPotAtShowdown / winners.length) / 20));
+                    let animatedWinnerCount = 0;
+                    winners.forEach(w => {
+                        const seatPos = playerSeats[w];
+                        if (seatPos === undefined) return;
+                        animatedWinnerCount += 1;
+                        flyChipsToSeat(seatPos, chipsPerWinner);
+                    });
+                    if (animatedWinnerCount > 0) {
+                        soundChip(chipsPerWinner * animatedWinnerCount);
+                    }
+                }
                 winners.forEach(w => {
                     const seatPos = playerSeats[w];
                     if (seatPos === undefined) return;
@@ -1050,10 +1064,7 @@
             return potCenterCache;
         }
 
-        function flyChipsFromSeat(pos, count) {
-            if (lowPerfMode) return;
-            const from = getSeatCenter(pos);
-            const to   = getPotCenter();
+        function flyChips(from, to, count) {
             if (!from || !to) return;
             const n = Math.min(count, 5);
             for (let i = 0; i < n; i++) {
@@ -1070,6 +1081,20 @@
                     chip.addEventListener('animationend', () => chip.remove());
                 }, i * 80);
             }
+        }
+
+        function flyChipsFromSeat(pos, count) {
+            if (lowPerfMode) return;
+            const from = getSeatCenter(pos);
+            const to   = getPotCenter();
+            flyChips(from, to, count);
+        }
+
+        function flyChipsToSeat(pos, count) {
+            if (lowPerfMode) return;
+            const from = getPotCenter();
+            const to   = getSeatCenter(pos);
+            flyChips(from, to, count);
         }
 
         function popPot(x, y, amount) {
