@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>RoyalTest</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1192,7 +1192,24 @@
     function showScreen(name) {
         Object.values(screens).forEach(s => s.classList.remove('active'));
         screens[name].classList.add('active');
+        if (name === 'game') enterImmersiveMode();
     }
+
+    function enterImmersiveMode() {
+        const root = document.documentElement;
+        const requestFullscreen = root.requestFullscreen || root.webkitRequestFullscreen;
+        if (document.fullscreenElement || typeof requestFullscreen !== 'function') return;
+        try {
+            const maybePromise = requestFullscreen.call(root, { navigationUI: 'hide' });
+            if (maybePromise && typeof maybePromise.catch === 'function') {
+                maybePromise.catch(() => {});
+            }
+        } catch (_) {}
+    }
+
+    document.addEventListener('click', () => {
+        if (screens.game.classList.contains('active')) enterImmersiveMode();
+    }, { passive: true });
 
     const savedPlayerSound = localStorage.getItem('player_sound_enabled');
     soundEnabled = savedPlayerSound === null ? true : savedPlayerSound === '1';

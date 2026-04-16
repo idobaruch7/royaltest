@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>RoyalTest — Table</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -856,6 +856,18 @@
             soundToggle.textContent = soundEnabled ? 'Sound On' : 'Muted';
         }
 
+        function enterImmersiveMode() {
+            const root = document.documentElement;
+            const requestFullscreen = root.requestFullscreen || root.webkitRequestFullscreen;
+            if (document.fullscreenElement || typeof requestFullscreen !== 'function') return;
+            try {
+                const maybePromise = requestFullscreen.call(root, { navigationUI: 'hide' });
+                if (maybePromise && typeof maybePromise.catch === 'function') {
+                    maybePromise.catch(() => {});
+                }
+            } catch (_) {}
+        }
+
         function invalidateGeometryCache() {
             tableRectCache = null;
             potCenterCache = null;
@@ -918,6 +930,7 @@
             winnerOverlay.style.display = 'none';
             winnerCardKeys = new Set();
             invalidateGeometryCache();
+            enterImmersiveMode();
         });
 
         socket.on('game_state', (state) => { winnerCardKeys = new Set(); scheduleRender(state); });
@@ -980,7 +993,10 @@
             winnerOverlay.style.display = 'flex';
         });
 
-        btnStart.addEventListener('click',    () => socket.emit('start_game'));
+        btnStart.addEventListener('click',    () => {
+            enterImmersiveMode();
+            socket.emit('start_game');
+        });
         btnNextHand.addEventListener('click', () => {
             winnerOverlay.style.display = 'none';
             socket.emit('next_hand');
