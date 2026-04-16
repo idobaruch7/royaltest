@@ -508,6 +508,8 @@ class Game:
         return self._pot_results
 
     def winner_hand_names(self) -> dict:
+        if self.state != GameState.SHOWDOWN or sum(1 for p in self.players if not p.folded) <= 1:
+            return {}
         result = {}
         for p in self._winners:
             if p.hand and self.community_cards:
@@ -519,6 +521,8 @@ class Game:
 
     def winner_hand_details(self) -> dict:
         """For each winner: hand name + the 5 cards that make the best hand."""
+        if self.state != GameState.SHOWDOWN or sum(1 for p in self.players if not p.folded) <= 1:
+            return {}
         result = {}
         for p in self._winners:
             all_cards = (p.hand or []) + self.community_cards
