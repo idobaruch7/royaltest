@@ -16,6 +16,7 @@ socketio = SocketIO(app, cors_allowed_origins='*')
 # ── State ──────────────────────────────────────────────────────────────────────
 
 GAME_CODE_LEN = 6
+VALID_GAME_CODE_CHARS = string.ascii_uppercase + string.digits
 
 games = {}             # game_code -> game state dict
 sid_to_game = {}       # sid -> game_code
@@ -47,15 +48,17 @@ def _game_room(game_code: str) -> str:
 
 
 def _normalize_game_code(raw: str) -> str:
-    code = ''.join(ch for ch in (raw or '').upper() if ch in string.ascii_uppercase + string.digits)
+    code = ''.join(ch for ch in (raw or '').upper() if ch in VALID_GAME_CODE_CHARS)
     return code[:GAME_CODE_LEN]
 
 
 def _generate_game_code() -> str:
-    while True:
-        code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(GAME_CODE_LEN))
+    max_attempts = 2048
+    for _ in range(max_attempts):
+        code = ''.join(secrets.choice(VALID_GAME_CODE_CHARS) for _ in range(GAME_CODE_LEN))
         if code not in games:
             return code
+    raise RuntimeError('Unable to allocate a unique game code.')
 
 
 def _lookup_game_for_sid(sid: str):
@@ -140,7 +143,11 @@ def on_disconnect():
 @socketio.on('host_connected')
 def on_host_connected(data=None):
     requested_code = _normalize_game_code((data or {}).get('game_code', ''))
-    game_code = requested_code or _generate_game_code()
+    try:
+        game_code = requested_code or _generate_game_code()
+    except RuntimeError:
+        emit('host_error', {'message': 'Unable to create a new table right now. Please try again.'})
+        return
     game = _get_or_create_game(game_code)
 
     sid = _request_sid()
@@ -631,6 +638,6 @@ if __name__ == '__main__':
     local_ip = _get_local_ip()
     print()
     print(f'  Host page : http://localhost:{port}/host')
-    print(f'  Player URL: http://{local_ip}:{port}/join?code=TABLECODE')
+    print(f'  Player URL: http://{local_ip}:{port}/join?code=ABC123')
     print()
     socketio.run(app, host=bind_host, port=port, debug=debug)
