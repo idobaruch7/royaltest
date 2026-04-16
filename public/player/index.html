@@ -1372,9 +1372,15 @@
 
     // ── Socket events ─────────────────────────────────────────────────────────
     socket.on('connect', () => {
-        if (!myNickname) {
-            tryAutoJoin();
+        if (myNickname) {
+            socket.emit('join_game', { nickname: myNickname, session_id: playerSessionId });
+            return;
         }
+        if (pendingJoinName) {
+            socket.emit('join_game', { nickname: pendingJoinName, session_id: playerSessionId });
+            return;
+        }
+        tryAutoJoin();
     });
 
     socket.on('join_error', (d) => { joinError.textContent = d.message; });
