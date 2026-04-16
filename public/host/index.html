@@ -24,17 +24,23 @@
             --text-muted:   #706050;
             --radius:       10px;
             --host-scale:   1;
+            --host-vw:      100vw;
+            --host-vh:      100vh;
         }
 
         /* ── Reset ── */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+        }
 
         body {
             font-family: 'IBM Plex Mono', monospace;
             background: var(--bg);
             color: var(--text);
             overflow: hidden;
-            width: 100vw; height: 100vh;
             position: relative;
         }
 
@@ -42,8 +48,8 @@
             position: absolute;
             top: 0;
             left: 0;
-            width: calc((100vw + 2px) / var(--host-scale));
-            height: calc((100vh + 2px) / var(--host-scale));
+            width: calc(var(--host-vw) / var(--host-scale));
+            height: calc(var(--host-vh) / var(--host-scale));
             transform: scale(var(--host-scale));
             transform-origin: top left;
         }
@@ -66,7 +72,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            height: 100%;
             gap: 0;
             position: relative;
             overflow: hidden;
@@ -225,7 +231,8 @@
         #game-screen {
             display: none;
             position: relative;
-            width: 100vw; height: 100vh;
+            width: 100%;
+            height: 100%;
             background: radial-gradient(ellipse at 50% 46%, #081308 0%, var(--bg) 65%);
         }
 
@@ -877,7 +884,11 @@
         function updateHostScale() {
             const baselineWidth = 1366;
             const baselineHeight = 768;
-            const scale = Math.min(1, window.innerWidth / baselineWidth, window.innerHeight / baselineHeight);
+            const viewportWidth = Math.ceil(window.innerWidth);
+            const viewportHeight = Math.ceil(window.innerHeight);
+            const scale = Math.min(1, viewportWidth / baselineWidth, viewportHeight / baselineHeight);
+            document.documentElement.style.setProperty('--host-vw', `${viewportWidth}px`);
+            document.documentElement.style.setProperty('--host-vh', `${viewportHeight}px`);
             document.documentElement.style.setProperty('--host-scale', String(scale));
         }
 
