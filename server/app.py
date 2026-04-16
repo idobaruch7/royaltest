@@ -19,6 +19,8 @@ current_game = None       # Game instance (active during a game session)
 session_to_player = {}    # session_id -> HumanPlayer (during game)
 game_active = False
 join_queue = []           # [session_id] players waiting to join next hand
+auto_next_hand_generation = 0
+AUTO_NEXT_HAND_DELAY_SECONDS = 4.0
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -149,6 +151,12 @@ def on_join_game(data):
 def on_start_game():
     global current_game, session_to_player, game_active
 
+    requester_session_id = sid_to_session.get(_request_sid())
+    starter_session_id = _first_connected_lobby_session_id()
+    if requester_session_id and starter_session_id and requester_session_id != starter_session_id:
+        emit('start_error', {'message': 'Only the first connected player can start the game.'})
+        return
+
     players_list = _connected_lobby_players()
     if len(players_list) < 2:
         emit('start_error', {'message': 'Need at least 2 players to start.'})
@@ -193,21 +201,8 @@ def on_player_action(data):
 
 @socketio.on('next_hand')
 def on_next_hand():
-    global current_game, game_active
-
-    if not current_game:
-        return
-
-    _flush_queue()
-
-    if _finish_game_if_too_few_connected():
-        return
-
-    current_game.next_hand()
-    _sync_all_game_player_chips()
-    _broadcast_game_state()
-    _send_private_hands()
-    _process_automatic_turns()
+    _cancel_auto_next_hand()
+    _advance_to_next_hand()
 
 
 # ── Game helpers ──────────────────────────────────────────────────────────────
@@ -360,6 +355,7 @@ def _broadcast_hand_over():
         'pot_results': current_game.get_pot_results(),
         'game_state': current_game.to_dict(),
     })
+    _schedule_auto_next_hand()
 
 
 # ── Lobby helpers ─────────────────────────────────────────────────────────────
@@ -370,6 +366,13 @@ def _lobby_players():
 
 def _connected_lobby_players():
     return [info for info in _lobby_players() if info['is_connected']]
+
+
+def _first_connected_lobby_session_id() -> str | None:
+    for session_id, info in session_players.items():
+        if info['state'] == 'lobby' and info['is_connected']:
+            return session_id
+    return None
 
 
 def _connected_game_players():
@@ -490,6 +493,7 @@ def _queue_position(session_id: str) -> int:
 def _end_game_session():
     global current_game, session_to_player, game_active, join_queue
 
+    _cancel_auto_next_hand()
     game_active = False
     current_game = None
     session_to_player = {}
@@ -515,6 +519,48 @@ def _get_local_ip():
 
 def _request_sid() -> str:
     return str(getattr(request, 'sid', ''))
+
+
+def _cancel_auto_next_hand():
+    global auto_next_hand_generation
+    auto_next_hand_generation += 1
+
+
+def _schedule_auto_next_hand(delay_seconds: float | None = None):
+    global auto_next_hand_generation
+    auto_next_hand_generation += 1
+    generation = auto_next_hand_generation
+    delay = AUTO_NEXT_HAND_DELAY_SECONDS if delay_seconds is None else delay_seconds
+
+    def _run():
+        socketio.sleep(delay)
+        if generation != auto_next_hand_generation:
+            return
+        if not current_game or not game_active:
+            return
+        if getattr(current_game.state, 'value', '') != 'showdown':
+            return
+        _advance_to_next_hand()
+
+    socketio.start_background_task(_run)
+
+
+def _advance_to_next_hand():
+    global current_game
+
+    if not current_game:
+        return
+
+    _flush_queue()
+
+    if _finish_game_if_too_few_connected():
+        return
+
+    current_game.next_hand()
+    _sync_all_game_player_chips()
+    _broadcast_game_state()
+    _send_private_hands()
+    _process_automatic_turns()
 
 
 # ── Entry Point ───────────────────────────────────────────────────────────────

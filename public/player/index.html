@@ -984,9 +984,10 @@
 <!-- ── SCREEN: LOBBY ── -->
 <div id="lobby-screen" class="screen">
     <div class="lobby-logo">♠ RoyalTest</div>
-    <div class="lobby-waiting">Waiting for host to start…</div>
+    <div class="lobby-waiting" id="lobby-waiting">Waiting for table starter…</div>
     <div id="my-badge">···</div>
     <div class="lobby-list" id="lobby-list"></div>
+    <button class="btn-join-main" id="btn-start-game" style="max-width:360px;display:none;" disabled>Start Game</button>
 </div>
 
 <!-- ── SCREEN: GAME ── -->
@@ -1081,7 +1082,9 @@
     const inputNickname    = document.getElementById('input-nickname');
     const joinError        = document.getElementById('join-error');
     const myBadge          = document.getElementById('my-badge');
+    const lobbyWaiting     = document.getElementById('lobby-waiting');
     const lobbyList        = document.getElementById('lobby-list');
+    const btnStartGame     = document.getElementById('btn-start-game');
     const statusBanner     = document.getElementById('status-banner');
     const soundToggle      = document.getElementById('sound-toggle');
     const miniPlayers      = document.getElementById('mini-players');
@@ -1118,6 +1121,7 @@
     let raiseStep = 1;
     let pendingJoinName = '';
     let hasTriedAutoJoin = false;
+    let canStartGame = false;
     const playerSessionId = getOrCreatePlayerSessionId();
     const prefersCoarsePointer = window.matchMedia('(pointer: coarse)');
     const isLandscape = window.matchMedia('(orientation: landscape)');
@@ -1316,6 +1320,10 @@
     }
     btnJoin.addEventListener('click', tryJoin);
     inputNickname.addEventListener('keydown', e => { if (e.key === 'Enter') tryJoin(); });
+    btnStartGame.addEventListener('click', () => {
+        if (!canStartGame) return;
+        socket.emit('start_game');
+    });
 
     // ── Raise slider ─────────────────────────────────────────────────────────
     raiseSlider.addEventListener('input', () => {
@@ -1382,6 +1390,9 @@
         setStatus('result', esc(d.message || 'Illegal action.'));
         actionPanel.classList.add('active');
     });
+    socket.on('start_error', (d) => {
+        lobbyWaiting.textContent = d.message || 'Unable to start the game yet.';
+    });
 
     socket.on('join_queued', (d) => {
         applyPlayerIdentity(d.nickname, d.chips);
@@ -1403,8 +1414,23 @@
         lobbyList.innerHTML = players.map(p => `
             <div class="lobby-item ${p.nickname === myNickname ? 'me' : ''}">
                 <span>${esc(p.nickname)}${p.nickname === myNickname ? ' <span style="color:var(--ivory-dim);font-size:0.7em;">(you)</span>' : ''}</span>
-                <span class="l-chips">⬤ ${fmt(p.chips)}</span>
+                <span class="l-chips">${p.is_connected ? '⬤ ' + fmt(p.chips) : 'offline'}</span>
             </div>`).join('');
+
+        const connectedPlayers = players.filter(p => p.is_connected === true);
+        const firstConnected = connectedPlayers[0];
+        canStartGame = !!(firstConnected && firstConnected.nickname === myNickname);
+        const enoughPlayers = connectedPlayers.length >= 2;
+        btnStartGame.style.display = canStartGame ? 'block' : 'none';
+        btnStartGame.disabled = !enoughPlayers;
+
+        if (canStartGame) {
+            lobbyWaiting.textContent = enoughPlayers
+                ? 'You can start when everyone is ready.'
+                : 'Waiting for one more player to join…';
+        } else {
+            lobbyWaiting.textContent = 'Waiting for table starter to begin…';
+        }
     });
 
     socket.on('game_starting', () => {
