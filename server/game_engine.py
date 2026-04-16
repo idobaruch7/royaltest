@@ -508,6 +508,8 @@ class Game:
         return self._pot_results
 
     def winner_hand_names(self) -> dict:
+        if self.state != GameState.SHOWDOWN or sum(1 for p in self.players if not p.folded) <= 1:
+            return {}
         result = {}
         for p in self._winners:
             if p.hand and self.community_cards:
@@ -519,6 +521,8 @@ class Game:
 
     def winner_hand_details(self) -> dict:
         """For each winner: hand name + the 5 cards that make the best hand."""
+        if self.state != GameState.SHOWDOWN or sum(1 for p in self.players if not p.folded) <= 1:
+            return {}
         result = {}
         for p in self._winners:
             all_cards = (p.hand or []) + self.community_cards
@@ -538,6 +542,9 @@ class Game:
         """Serialize game state. Hide opponents' hole cards except at showdown."""
         current = self._current_player()
         players_out = []
+        showdown_players_count = (
+            sum(1 for p in self.players if not p.folded) if self.state == GameState.SHOWDOWN else 0
+        )
 
         for i, p in enumerate(self.players):
             entry = {
@@ -555,7 +562,7 @@ class Game:
             }
 
             show_hand = (
-                self.state == GameState.SHOWDOWN and not p.folded
+                self.state == GameState.SHOWDOWN and showdown_players_count > 1 and not p.folded
             ) or (
                 for_sid is not None and hasattr(p, 'sid') and p.sid == for_sid
             )
