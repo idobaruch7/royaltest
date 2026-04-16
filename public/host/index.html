@@ -48,8 +48,8 @@
             position: absolute;
             top: 0;
             left: 0;
-            width: calc(var(--host-vw) / var(--host-scale));
-            height: calc(var(--host-vh) / var(--host-scale));
+            width: calc((var(--host-vw) + 1px) / var(--host-scale));
+            height: calc((var(--host-vh) + 1px) / var(--host-scale));
             transform: scale(var(--host-scale));
             transform-origin: top left;
         }
