@@ -17,6 +17,7 @@ socketio = SocketIO(app, cors_allowed_origins='*')
 
 GAME_CODE_LEN = 6
 VALID_GAME_CODE_CHARS = string.ascii_uppercase + string.digits
+MAX_GAME_CODE_GENERATION_ATTEMPTS = 2048
 
 games = {}             # game_code -> game state dict
 sid_to_game = {}       # sid -> game_code
@@ -53,8 +54,7 @@ def _normalize_game_code(raw: str) -> str:
 
 
 def _generate_game_code() -> str:
-    max_attempts = 2048
-    for _ in range(max_attempts):
+    for _ in range(MAX_GAME_CODE_GENERATION_ATTEMPTS):
         code = ''.join(secrets.choice(VALID_GAME_CODE_CHARS) for _ in range(GAME_CODE_LEN))
         if code not in games:
             return code
