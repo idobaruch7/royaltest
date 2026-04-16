@@ -935,15 +935,19 @@
             const winners = data.winners || [];
             if (!lowPerfMode) {
                 soundWin();
-                const totalPot = prevPot || (data.game_state ? (data.game_state.pot || 0) : 0);
-                if (totalPot > 0 && winners.length > 0) {
-                    const chipsPerWinner = Math.max(1, Math.round((totalPot / winners.length) / 20));
+                const totalPotAtShowdown = prevPot > 0 ? prevPot : (data.game_state ? (data.game_state.pot || 0) : 0);
+                if (totalPotAtShowdown > 0 && winners.length > 0) {
+                    const chipsPerWinner = Math.max(1, Math.round((totalPotAtShowdown / winners.length) / 20));
+                    let animatedWinnerCount = 0;
                     winners.forEach(w => {
                         const seatPos = playerSeats[w];
                         if (seatPos === undefined) return;
+                        animatedWinnerCount += 1;
                         flyChipsToSeat(seatPos, chipsPerWinner);
                     });
-                    soundChip(chipsPerWinner);
+                    if (animatedWinnerCount > 0) {
+                        soundChip(chipsPerWinner * animatedWinnerCount);
+                    }
                 }
                 winners.forEach(w => {
                     const seatPos = playerSeats[w];
