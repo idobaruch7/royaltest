@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>RoyalTest</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1192,6 +1192,37 @@
     function showScreen(name) {
         Object.values(screens).forEach(s => s.classList.remove('active'));
         screens[name].classList.add('active');
+        const isGameScreen = name === 'game';
+        if (isGameScreen) enterImmersiveMode();
+        toggleImmersiveRetryListener(isGameScreen);
+    }
+
+    function enterImmersiveMode() {
+        const root = document.documentElement;
+        const requestFullscreen =
+            root.requestFullscreen ||
+            root.webkitRequestFullscreen ||
+            root.mozRequestFullScreen ||
+            root.msRequestFullscreen;
+        const isFullscreenActive =
+            document.fullscreenElement ||
+            document.webkitFullscreenElement ||
+            document.mozFullScreenElement ||
+            document.msFullscreenElement;
+        if (isFullscreenActive || typeof requestFullscreen !== 'function') return;
+        try {
+            const maybePromise = requestFullscreen.call(root, { navigationUI: 'hide' });
+            if (maybePromise && typeof maybePromise.catch === 'function') {
+                maybePromise.catch(() => {});
+            }
+        } catch (_) {}
+    }
+
+    const immersiveRetryListenerOptions = { passive: true };
+
+    function toggleImmersiveRetryListener(enabled) {
+        const method = enabled ? 'addEventListener' : 'removeEventListener';
+        document[method]('click', enterImmersiveMode, immersiveRetryListenerOptions);
     }
 
     const savedPlayerSound = localStorage.getItem('player_sound_enabled');
