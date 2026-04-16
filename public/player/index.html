@@ -1414,10 +1414,10 @@
         lobbyList.innerHTML = players.map(p => `
             <div class="lobby-item ${p.nickname === myNickname ? 'me' : ''}">
                 <span>${esc(p.nickname)}${p.nickname === myNickname ? ' <span style="color:var(--ivory-dim);font-size:0.7em;">(you)</span>' : ''}</span>
-                <span class="l-chips">${p.is_connected === false ? 'offline' : '⬤ ' + fmt(p.chips)}</span>
+                <span class="l-chips">${p.is_connected === true ? '⬤ ' + fmt(p.chips) : 'offline'}</span>
             </div>`).join('');
 
-        const connectedPlayers = players.filter(p => p.is_connected !== false);
+        const connectedPlayers = players.filter(p => p.is_connected === true);
         const firstConnected = connectedPlayers[0];
         canStartGame = !!(firstConnected && firstConnected.nickname === myNickname);
         const enoughPlayers = connectedPlayers.length >= 2;
