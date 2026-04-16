@@ -863,7 +863,12 @@
                 root.webkitRequestFullscreen ||
                 root.mozRequestFullScreen ||
                 root.msRequestFullscreen;
-            if (document.fullscreenElement || typeof requestFullscreen !== 'function') return;
+            const isFullscreenActive =
+                document.fullscreenElement ||
+                document.webkitFullscreenElement ||
+                document.mozFullScreenElement ||
+                document.msFullscreenElement;
+            if (isFullscreenActive || typeof requestFullscreen !== 'function') return;
             try {
                 const maybePromise = requestFullscreen.call(root, { navigationUI: 'hide' });
                 if (maybePromise && typeof maybePromise.catch === 'function') {
