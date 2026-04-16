@@ -955,7 +955,7 @@
             winnerDesc.innerHTML = winningHands.length
                 ? '— ' + winningHands.map(esc).join(' / ')
                 : '';
-            btnNextHand.style.display = '';
+            btnNextHand.style.display = 'none';
             winnerOverlay.style.display = 'flex';
             // Reset bet tracking for next hand
             prevBets = {};

@@ -83,8 +83,8 @@ ROYALTEST_SECRET_KEY="change-me" ROYALTEST_DEBUG=1 python3 server/app.py
 
 1. Open `/host` on the main display.
 2. Players join from their phones using `/join`.
-3. Host starts the game when enough players are seated.
-4. New joiners during a hand are queued for the next hand.
+3. The first connected player starts the game when enough players are seated.
+4. New joiners during a hand are queued for the next hand, and hands advance automatically.
 
 ## Project Structure
 
