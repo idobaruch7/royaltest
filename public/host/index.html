@@ -23,6 +23,7 @@
             --text:         #ccc2ac;
             --text-muted:   #706050;
             --radius:       10px;
+            --host-scale:   1;
         }
 
         /* ── Reset ── */
@@ -35,6 +36,13 @@
             overflow: hidden;
             width: 100vw; height: 100vh;
             position: relative;
+        }
+
+        #host-root {
+            width: 100vw;
+            height: 100vh;
+            transform: scale(var(--host-scale));
+            transform-origin: center center;
         }
 
         /* Grain overlay */
@@ -723,6 +731,7 @@
 </head>
 <body>
 
+    <div id="host-root">
     <!-- ── LOBBY ── -->
     <div id="lobby-screen">
         <div class="lobby-inner">
@@ -779,6 +788,7 @@
             <div id="winner-desc"></div>
         </div>
         <button id="btn-next-hand" class="start-btn" style="white-space:nowrap;">Next Hand &#9654;</button>
+    </div>
     </div>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
@@ -861,6 +871,13 @@
             potCenterCache = null;
         }
 
+        function updateHostScale() {
+            const baselineWidth = 1366;
+            const baselineHeight = 768;
+            const scale = Math.min(1, window.innerWidth / baselineWidth, window.innerHeight / baselineHeight);
+            document.documentElement.style.setProperty('--host-scale', String(scale));
+        }
+
         function scheduleRender(state) {
             pendingGameState = state;
             if (renderScheduled) return;
@@ -893,7 +910,11 @@
             lowPerfMode = !lowPerfMode;
             applyLowPerfMode();
         });
-        window.addEventListener('resize', invalidateGeometryCache);
+        updateHostScale();
+        window.addEventListener('resize', () => {
+            updateHostScale();
+            invalidateGeometryCache();
+        });
 
         socket.on('lobby_update', (players) => {
             if (players.length === 0) {
