@@ -638,6 +638,6 @@ if __name__ == '__main__':
     local_ip = _get_local_ip()
     print()
     print(f'  Host page : http://localhost:{port}/host')
-    print(f'  Player URL: http://{local_ip}:{port}/join?code=ABC123')
+    print(f'  Player URL: http://{local_ip}:{port}/join?code=YOUR_CODE')
     print()
     socketio.run(app, host=bind_host, port=port, debug=debug)

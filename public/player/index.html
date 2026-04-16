@@ -1275,6 +1275,7 @@
 
         const savedName = loadSavedNickname();
         const gameCode = normalizeGameCode(inputGameCode.value);
+        // Auto-join is best-effort only; if no table code is known we keep the join form visible.
         if (!savedName || !gameCode) return;
 
         pendingJoinName = savedName;
