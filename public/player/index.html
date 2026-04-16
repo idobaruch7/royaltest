@@ -1125,7 +1125,7 @@
 
     async function tryLockPortrait() {
         if (screen.orientation && typeof screen.orientation.lock === 'function') {
-            try { await screen.orientation.lock('portrait'); } catch (_) {}
+            try { await screen.orientation.lock('portrait'); } catch {}
         }
     }
 
