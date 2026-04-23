@@ -72,6 +72,7 @@ You can configure runtime behavior with environment variables:
 - `ROYALTEST_HOST`: bind host (default: `0.0.0.0`)
 - `ROYALTEST_PORT`: bind port (default: `5000`)
 - `ROYALTEST_DEBUG`: debug mode (`1/true/yes/on` to enable, default off)
+- `ROYALTEST_TURN_TIMEOUT_SECONDS`: betting turn timeout before auto check/fold (default: `20`)
 
 Example:
 

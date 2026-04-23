@@ -38,6 +38,7 @@ class HumanPlayer(Player):
         self.session_id = session_id
         self.sid = sid
         self.is_connected = sid is not None
+        self.force_auto = False
 
     def get_action(self, game_state: dict) -> dict:
         raise RuntimeError('HumanPlayer actions come from socket events, not get_action()')
