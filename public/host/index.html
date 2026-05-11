@@ -152,6 +152,9 @@
             color: var(--text-muted);
             margin-bottom: 6px;
         }
+        .join-url-box .lbl.table-code-label {
+            margin-top: 10px;
+        }
 
         .lobby-empty {
             color: var(--text-muted);
@@ -746,6 +749,8 @@
             <div class="join-url-box">
                 <div class="lbl">Players join at</div>
                 <div class="url" id="join-url">—</div>
+                <div class="lbl table-code-label">Table code</div>
+                <div class="url" id="table-code">—</div>
             </div>
 
             <div id="lobby-list" class="lobby-players">
@@ -899,9 +904,19 @@
 
         // ── Socket events ─────────────────────────────────────────────────────
         socket.on('connect', () => {
-            socket.emit('host_connected');
-            document.getElementById('join-url').textContent =
-                `${location.protocol}//${location.hostname}:5000/join`;
+            const savedGameCode = sessionStorage.getItem('royaltest.hostGameCode') || '';
+            socket.emit('host_connected', { game_code: savedGameCode });
+        });
+
+        socket.on('host_ready', (data) => {
+            if (!data) return;
+            if (data.game_code) {
+                sessionStorage.setItem('royaltest.hostGameCode', data.game_code);
+                document.getElementById('table-code').textContent = data.game_code;
+            }
+            if (data.join_url) {
+                document.getElementById('join-url').textContent = data.join_url;
+            }
         });
 
         const savedHostSound = localStorage.getItem('host_sound_enabled');

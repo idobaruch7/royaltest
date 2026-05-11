@@ -963,6 +963,10 @@
         <div class="join-tagline">Texas Hold'em · Private Table</div>
         <div class="join-divider"></div>
         <div class="join-error" id="join-error"></div>
+        <input class="join-input" type="text" id="input-game-code"
+               placeholder="Table code…" maxlength="6"
+               autocomplete="off" autocapitalize="characters"
+               aria-label="Table code">
         <input class="join-input" type="text" id="input-nickname"
                placeholder="Your name…" maxlength="20"
                autocomplete="off" autocapitalize="words">
@@ -1078,6 +1082,7 @@
 
     const screens          = { join: document.getElementById('join-screen'), queue: document.getElementById('queue-screen'), lobby: document.getElementById('lobby-screen'), game: document.getElementById('game-screen') };
     const btnJoin          = document.getElementById('btn-join');
+    const inputGameCode    = document.getElementById('input-game-code');
     const inputNickname    = document.getElementById('input-nickname');
     const joinError        = document.getElementById('join-error');
     const myBadge          = document.getElementById('my-badge');
@@ -1108,6 +1113,7 @@
     const orientationLockOverlay = document.getElementById('orientation-lock-overlay');
     const PLAYER_SESSION_KEY = 'royaltest.playerSessionId';
     const PLAYER_NICKNAME_KEY = 'royaltest.playerNickname';
+    const PLAYER_GAME_CODE_KEY = 'royaltest.playerGameCode';
 
     let myNickname = '';
     let myChips    = 1000;
@@ -1189,6 +1195,10 @@
     }
     function fmt(n) { return Number(n).toLocaleString(); }
 
+    function normalizeGameCode(value) {
+        return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    }
+
     function showScreen(name) {
         Object.values(screens).forEach(s => s.classList.remove('active'));
         screens[name].classList.add('active');
@@ -1230,6 +1240,27 @@
         }
     }
 
+    function saveGameCode(code) {
+        const normalized = normalizeGameCode(code);
+        try {
+            localStorage.setItem(PLAYER_GAME_CODE_KEY, normalized);
+        } catch (_) {}
+        inputGameCode.value = normalized;
+        return normalized;
+    }
+
+    function loadSavedGameCode() {
+        let initial = '';
+        try {
+            initial = localStorage.getItem(PLAYER_GAME_CODE_KEY) || '';
+        } catch (_) {}
+        try {
+            const fromUrl = normalizeGameCode(new URLSearchParams(window.location.search).get('code') || '');
+            if (fromUrl) initial = fromUrl;
+        } catch (_) {}
+        return saveGameCode(initial);
+    }
+
     function applyPlayerIdentity(name, chips) {
         myNickname = name;
         myChips = chips;
@@ -1243,12 +1274,14 @@
         hasTriedAutoJoin = true;
 
         const savedName = loadSavedNickname();
-        if (!savedName) return;
+        const gameCode = normalizeGameCode(inputGameCode.value);
+        // Auto-join is best-effort only; if no table code is known we keep the join form visible.
+        if (!savedName || !gameCode) return;
 
         pendingJoinName = savedName;
         inputNickname.value = savedName;
         joinError.textContent = 'Rejoining your seat…';
-        socket.emit('join_game', { nickname: savedName, session_id: playerSessionId });
+        socket.emit('join_game', { nickname: savedName, session_id: playerSessionId, game_code: gameCode });
     }
 
     function makeCard(rank, suit, size = 'small') {
@@ -1308,14 +1341,26 @@
 
     // ── Join ─────────────────────────────────────────────────────────────────
     function tryJoin() {
+        const gameCode = normalizeGameCode(inputGameCode.value);
+        if (!gameCode) {
+            joinError.textContent = 'Enter your table code.';
+            return;
+        }
         const name = inputNickname.value.trim();
         if (!name) return;
         pendingJoinName = name;
+        saveGameCode(gameCode);
         joinError.textContent = '';
-        socket.emit('join_game', { nickname: name, session_id: playerSessionId });
+        socket.emit('join_game', { nickname: name, session_id: playerSessionId, game_code: gameCode });
     }
     btnJoin.addEventListener('click', tryJoin);
     inputNickname.addEventListener('keydown', e => { if (e.key === 'Enter') tryJoin(); });
+    inputGameCode.addEventListener('input', () => {
+        inputGameCode.value = normalizeGameCode(inputGameCode.value);
+    });
+    inputGameCode.addEventListener('keydown', e => {
+        if (e.key === 'Enter') tryJoin();
+    });
 
     // ── Raise slider ─────────────────────────────────────────────────────────
     raiseSlider.addEventListener('input', () => {
@@ -1384,6 +1429,7 @@
     });
 
     socket.on('join_queued', (d) => {
+        saveGameCode(d.game_code || inputGameCode.value);
         applyPlayerIdentity(d.nickname, d.chips);
         document.getElementById('my-badge-queue').textContent = `${d.nickname}  ·  ${fmt(d.chips)}`;
         setStatus('', d.reconnected ? 'Reconnected. Waiting for the next hand…' : 'Waiting for the next hand…');
@@ -1391,6 +1437,7 @@
     });
 
     socket.on('join_success', (d) => {
+        saveGameCode(d.game_code || inputGameCode.value);
         applyPlayerIdentity(d.nickname, d.chips);
         myBadge.textContent = `${d.nickname}  ·  ${fmt(d.chips)}`;
         if (d.reconnected && !document.getElementById('game-screen').classList.contains('active')) {
@@ -1398,6 +1445,8 @@
         }
         showScreen('lobby');
     });
+
+    loadSavedGameCode();
 
     socket.on('lobby_update', (players) => {
         lobbyList.innerHTML = players.map(p => `
