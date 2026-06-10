@@ -1238,6 +1238,10 @@
         inputNickname.value = name;
     }
 
+    function emitJoinRequest(name) {
+        socket.emit('join_game', { nickname: name, session_id: playerSessionId });
+    }
+
     function tryAutoJoin() {
         if (hasTriedAutoJoin) return;
         hasTriedAutoJoin = true;
@@ -1248,7 +1252,7 @@
         pendingJoinName = savedName;
         inputNickname.value = savedName;
         joinError.textContent = 'Rejoining your seat…';
-        socket.emit('join_game', { nickname: savedName, session_id: playerSessionId });
+        emitJoinRequest(savedName);
     }
 
     function makeCard(rank, suit, size = 'small') {
@@ -1312,7 +1316,7 @@
         if (!name) return;
         pendingJoinName = name;
         joinError.textContent = '';
-        socket.emit('join_game', { nickname: name, session_id: playerSessionId });
+        emitJoinRequest(name);
     }
     btnJoin.addEventListener('click', tryJoin);
     inputNickname.addEventListener('keydown', e => { if (e.key === 'Enter') tryJoin(); });
@@ -1372,9 +1376,15 @@
 
     // ── Socket events ─────────────────────────────────────────────────────────
     socket.on('connect', () => {
-        if (!myNickname) {
-            tryAutoJoin();
+        if (myNickname) {
+            emitJoinRequest(myNickname);
+            return;
         }
+        if (pendingJoinName) {
+            emitJoinRequest(pendingJoinName);
+            return;
+        }
+        tryAutoJoin();
     });
 
     socket.on('join_error', (d) => { joinError.textContent = d.message; });
