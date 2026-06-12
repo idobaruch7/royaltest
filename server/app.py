@@ -225,8 +225,6 @@ def on_disconnect():
     _broadcast_queue()
 
     if current_game:
-        if _finish_game_if_too_few_connected():
-            return
         _process_automatic_turns()
         _broadcast_game_state()
 
@@ -356,9 +354,6 @@ def on_next_hand():
 
     _flush_queue()
 
-    if _finish_game_if_too_few_connected():
-        return
-
     current_game.next_hand()
     _sync_all_game_player_chips()
     _persist_runtime_state()
@@ -425,7 +420,7 @@ def _apply_and_advance(sid, action: str, amount: int):
 
 
 def _process_automatic_turns():
-    """Run bot turns and disconnected human turns until a connected human needs to act."""
+    """Run bot turns until a human player needs to act."""
     from bot_player import BotPlayer, HumanPlayer
 
     while current_game and current_game.state.value not in ('waiting', 'showdown'):
@@ -445,20 +440,6 @@ def _process_automatic_turns():
             amount = action_dict.get('amount', 0)
 
             _, event = current_game.apply_action(None, action, amount)
-            _sync_all_game_player_chips()
-            _persist_runtime_state()
-            _broadcast_game_state()
-
-            if event == 'game_over':
-                _broadcast_hand_over()
-                return
-            continue
-
-        if isinstance(player, HumanPlayer) and not player.is_connected:
-            call_amount = current_game.current_bet - getattr(player, 'round_bet', 0)
-            action = 'check' if call_amount <= 0 else 'fold'
-            print(f'[auto_{action}] {player.nickname}')
-            _, event = current_game.apply_action(None, action, 0)
             _sync_all_game_player_chips()
             _persist_runtime_state()
             _broadcast_game_state()
@@ -531,27 +512,6 @@ def _lobby_players():
 
 def _connected_lobby_players():
     return [info for info in _lobby_players() if info['is_connected']]
-
-
-def _connected_game_players():
-    if not current_game:
-        return []
-    return [
-        player for player in current_game.players
-        if getattr(player, 'is_connected', True) and player.chips > 0
-    ]
-
-
-def _finish_game_if_too_few_connected() -> bool:
-    connected_players = _connected_game_players()
-    if len(connected_players) >= 2:
-        return False
-
-    socketio.emit('game_finished', {
-        'winner': connected_players[0].nickname if len(connected_players) == 1 else None
-    })
-    _end_game_session()
-    return True
 
 
 def _lobby_snapshot():
