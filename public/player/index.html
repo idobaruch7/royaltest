@@ -1114,6 +1114,7 @@
     const orientationLockOverlay = document.getElementById('orientation-lock-overlay');
     const PLAYER_SESSION_KEY = 'royaltest.playerSessionId';
     const PLAYER_NICKNAME_KEY = 'royaltest.playerNickname';
+    const tableToken = (new URLSearchParams(window.location.search).get('token') || '').toUpperCase();
 
     let myNickname = '';
     let myChips    = 1000;
@@ -1244,6 +1245,7 @@
     }
 
     function trySessionRejoin() {
+        if (!/^[A-Z0-9]{8}$/.test(tableToken)) return;
         const name = (myNickname || pendingJoinName || loadSavedNickname()).trim();
         if (!name) return;
         pendingJoinName = name;
@@ -1253,7 +1255,7 @@
         } else {
             joinError.textContent = 'Rejoining your seat…';
         }
-        socket.emit('join_game', { nickname: name, session_id: playerSessionId });
+        socket.emit('join_game', { nickname: name, session_id: playerSessionId, token: tableToken });
     }
 
     function makeCard(rank, suit, size = 'small') {
@@ -1313,11 +1315,15 @@
 
     // ── Join ─────────────────────────────────────────────────────────────────
     function tryJoin() {
+        if (!/^[A-Z0-9]{8}$/.test(tableToken)) {
+            joinError.textContent = 'Missing or invalid table token. Open the host join link.';
+            return;
+        }
         const name = inputNickname.value.trim();
         if (!name) return;
         pendingJoinName = name;
         joinError.textContent = '';
-        socket.emit('join_game', { nickname: name, session_id: playerSessionId });
+        socket.emit('join_game', { nickname: name, session_id: playerSessionId, token: tableToken });
     }
     btnJoin.addEventListener('click', tryJoin);
     inputNickname.addEventListener('keydown', e => { if (e.key === 'Enter') tryJoin(); });
@@ -1372,11 +1378,15 @@
         setRaiseUiOpen(false);
         actionPanel.classList.remove('active');
         setStatus('', 'Action sent…');
-        socket.emit('player_action', { action, amount });
+        socket.emit('player_action', { action, amount, token: tableToken });
     }
 
     // ── Socket events ─────────────────────────────────────────────────────────
     socket.on('connect', () => {
+        if (!/^[A-Z0-9]{8}$/.test(tableToken)) {
+            joinError.textContent = 'Missing or invalid table token. Open the host join link.';
+            return;
+        }
         trySessionRejoin();
     });
 

@@ -835,6 +835,7 @@
         let potCenterCache = null;
         let soundEnabled = true;
         let lowPerfMode = /web0s|smart-tv|smarttv|hbbtv|netcast|tizen/i.test(navigator.userAgent || '');
+        const tableToken = (new URLSearchParams(window.location.search).get('token') || '').toUpperCase();
 
         const PHASE_NAMES = {
             waiting: 'Waiting', pre_flop: 'Pre-Flop', flop: 'Flop',
@@ -905,9 +906,13 @@
 
         // ── Socket events ─────────────────────────────────────────────────────
         socket.on('connect', () => {
-            socket.emit('host_connected');
+            if (!/^[A-Z0-9]{8}$/.test(tableToken)) {
+                turnBannerEl.textContent = 'Missing or invalid table token.';
+                return;
+            }
+            socket.emit('host_connected', { token: tableToken });
             document.getElementById('join-url').textContent =
-                `${location.protocol}//${location.hostname}:5000/join`;
+                `${location.protocol}//${location.host}/join?token=${tableToken}`;
             turnBannerEl.textContent = '';
         });
 
@@ -1037,10 +1042,10 @@
             winnerOverlay.style.display = 'flex';
         });
 
-        btnStart.addEventListener('click',    () => socket.emit('start_game'));
+        btnStart.addEventListener('click',    () => socket.emit('start_game', { token: tableToken }));
         btnNextHand.addEventListener('click', () => {
             winnerOverlay.style.display = 'none';
-            socket.emit('next_hand');
+            socket.emit('next_hand', { token: tableToken });
         });
 
         // ── Audio ─────────────────────────────────────────────────────────────

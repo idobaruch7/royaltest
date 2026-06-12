@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-from flask import Flask, send_from_directory, request
-from flask_socketio import SocketIO, emit
+from flask import Flask, send_from_directory, request, redirect
+from flask_socketio import SocketIO, emit, join_room, leave_room
 import os
+import random
 import socket
-from sqlalchemy import Boolean, Integer, String, create_engine, delete, select, text
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+import string
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PUBLIC_DIR = os.path.join(BASE_DIR, 'public')
@@ -14,162 +13,72 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('ROYALTEST_SECRET_KEY', 'royaltest-dev-secret')
 socketio = SocketIO(app, cors_allowed_origins='*')
 
-# ── State ──────────────────────────────────────────────────────────────────────
+TOKEN_LENGTH = 8
+TOKEN_ALPHABET = string.ascii_uppercase + string.digits
 
-session_players = {}      # session_id -> {nickname, chips, sid, is_connected, state}
-sid_to_session = {}       # sid -> session_id
-current_game = None       # Game instance (active during a game session)
-session_to_player = {}    # session_id -> HumanPlayer (during game)
+# ── Multi-table state ─────────────────────────────────────────────────────────
+tables = {}            # token -> table state
+sid_to_token = {}      # sid -> token
+active_token = None
+
+session_players = {}   # session_id -> {nickname, chips, sid, is_connected, state}
+sid_to_session = {}    # sid -> session_id
+current_game = None    # Game instance (active during a game session)
+session_to_player = {} # session_id -> HumanPlayer (during game)
 game_active = False
-join_queue = []           # [session_id] players waiting to join next hand
+join_queue = []        # [session_id] players waiting to join next hand
 
 
-class Base(DeclarativeBase):
-    pass
-
-
-class RuntimeState(Base):
-    __tablename__ = 'runtime_state'
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    current_game: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    game_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text('false'), index=True)
-
-
-class SessionPlayerState(Base):
-    __tablename__ = 'session_players_state'
-    session_id: Mapped[str] = mapped_column(String(100), primary_key=True)
-    nickname: Mapped[str] = mapped_column(String(20), nullable=False, unique=True, index=True)
-    chips: Mapped[int] = mapped_column(Integer, nullable=False)
-    sid: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
-    is_connected: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text('false'), index=True)
-    state: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
-
-
-class SidSessionState(Base):
-    __tablename__ = 'sid_session_state'
-    sid: Mapped[str] = mapped_column(String(100), primary_key=True)
-    session_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
-
-
-class SessionToPlayerState(Base):
-    __tablename__ = 'session_to_player_state'
-    session_id: Mapped[str] = mapped_column(String(100), primary_key=True)
-    player_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
-
-
-class JoinQueueState(Base):
-    __tablename__ = 'join_queue_state'
-    position: Mapped[int] = mapped_column(Integer, primary_key=True)
-    session_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
-
-
-DATABASE_URL = os.getenv(
-    'ROYALTEST_DATABASE_URL',
-    'postgresql+psycopg://postgres@localhost:5432/royaltest',
-)
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
-SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
-
-
-def _serialize_session_player(player) -> dict:
+def _new_table_state():
     return {
-        'nickname': player.nickname,
-        'chips': player.chips,
-        'sid': getattr(player, 'sid', None),
-        'is_connected': getattr(player, 'is_connected', True),
-        'session_id': getattr(player, 'session_id', None),
+        'session_players': {},
+        'sid_to_session': {},
+        'current_game': None,
+        'session_to_player': {},
+        'game_active': False,
+        'join_queue': [],
     }
 
 
-def _load_runtime_state():
-    global session_players, sid_to_session, current_game, session_to_player, game_active, join_queue
-    from game_engine import Game
+def _normalize_token(raw: str | None) -> str:
+    token = (raw or '').strip().upper()
+    if len(token) != TOKEN_LENGTH or not token.isalnum():
+        return ''
+    return token
 
-    with SessionLocal() as db:
-        session_players = {
-            row.session_id: {
-                'session_id': row.session_id,
-                'nickname': row.nickname,
-                'chips': row.chips,
-                'sid': row.sid,
-                'is_connected': row.is_connected,
-                'state': row.state,
-            }
-            for row in db.execute(select(SessionPlayerState)).scalars().all()
-        }
-        sid_to_session = {
-            row.sid: row.session_id
-            for row in db.execute(select(SidSessionState)).scalars().all()
-        }
-        join_queue = [
-            row.session_id
-            for row in db.execute(select(JoinQueueState).order_by(JoinQueueState.position)).scalars().all()
-        ]
-        runtime = db.get(RuntimeState, 1)
-        if runtime and runtime.current_game:
-            current_game = Game.from_persisted_dict(runtime.current_game)
-            session_to_player = {
-                p.session_id: p
-                for p in current_game.players
-                if hasattr(p, 'session_id')
-            }
-        else:
-            current_game = None
-            session_to_player = {}
-        game_active = bool(runtime.game_active) if runtime else False
+
+def _generate_token() -> str:
+    while True:
+        token = ''.join(random.choices(TOKEN_ALPHABET, k=TOKEN_LENGTH))
+        if token not in tables:
+            return token
+
+
+def _activate_table(token: str):
+    global active_token, session_players, sid_to_session, current_game, session_to_player, game_active, join_queue
+    if token not in tables:
+        tables[token] = _new_table_state()
+    state = tables[token]
+    active_token = token
+    session_players = state['session_players']
+    sid_to_session = state['sid_to_session']
+    current_game = state['current_game']
+    session_to_player = state['session_to_player']
+    game_active = state['game_active']
+    join_queue = state['join_queue']
 
 
 def _persist_runtime_state():
-    with SessionLocal.begin() as db:
-        runtime = db.get(RuntimeState, 1)
-        if runtime is None:
-            runtime = RuntimeState(id=1)
-            db.add(runtime)
-
-        runtime.game_active = game_active
-        runtime.current_game = current_game.to_persisted_dict() if current_game else None
-
-        db.execute(delete(SessionPlayerState))
-        db.add_all([
-            SessionPlayerState(
-                session_id=session_id,
-                nickname=info['nickname'],
-                chips=info['chips'],
-                sid=info.get('sid'),
-                is_connected=info.get('is_connected', False),
-                state=info.get('state', 'lobby'),
-            )
-            for session_id, info in session_players.items()
-        ])
-
-        db.execute(delete(SidSessionState))
-        db.add_all([
-            SidSessionState(sid=sid, session_id=session_id)
-            for sid, session_id in sid_to_session.items()
-        ])
-
-        db.execute(delete(SessionToPlayerState))
-        db.add_all([
-            SessionToPlayerState(session_id=session_id, player_data=_serialize_session_player(player))
-            for session_id, player in session_to_player.items()
-        ])
-
-        db.execute(delete(JoinQueueState))
-        db.add_all([
-            JoinQueueState(position=index, session_id=session_id)
-            for index, session_id in enumerate(join_queue)
-        ])
-
-
-def _init_persistence():
-    Base.metadata.create_all(engine)
-    with SessionLocal.begin() as db:
-        if db.get(RuntimeState, 1) is None:
-            db.add(RuntimeState(id=1, game_active=False, current_game=None))
-    _load_runtime_state()
-
-
-_init_persistence()
+    if not active_token:
+        return
+    tables[active_token] = {
+        'session_players': session_players,
+        'sid_to_session': sid_to_session,
+        'current_game': current_game,
+        'session_to_player': session_to_player,
+        'game_active': game_active,
+        'join_queue': join_queue,
+    }
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -181,6 +90,12 @@ def index():
 
 @app.route('/host')
 def host():
+    token = _normalize_token(request.args.get('token'))
+    if not token:
+        token = _generate_token()
+        return redirect(f'/host?token={token}')
+    _activate_table(token)
+    _persist_runtime_state()
     return send_from_directory(os.path.join(PUBLIC_DIR, 'host'), 'index.html')
 
 
@@ -203,7 +118,13 @@ def on_connect():
 
 @socketio.on('disconnect')
 def on_disconnect():
-    session_id = sid_to_session.pop(_request_sid(), None)
+    sid = _request_sid()
+    token = sid_to_token.pop(sid, '')
+    if not token:
+        return
+    leave_room(token, sid=sid)
+    _activate_table(token)
+    session_id = sid_to_session.pop(sid, None)
     if not session_id:
         return
 
@@ -230,7 +151,14 @@ def on_disconnect():
 
 
 @socketio.on('host_connected')
-def on_host_connected():
+def on_host_connected(data):
+    token = _normalize_token((data or {}).get('token'))
+    if not token:
+        emit('join_error', {'message': 'Missing table token.'})
+        return
+    _activate_table(token)
+    sid_to_token[_request_sid()] = token
+    join_room(token)
     emit('lobby_update', _lobby_snapshot())
     emit('queue_update', _queue_snapshot())
     if current_game:
@@ -240,6 +168,14 @@ def on_host_connected():
 
 @socketio.on('join_game')
 def on_join_game(data):
+    token = _normalize_token((data or {}).get('token'))
+    if not token:
+        emit('join_error', {'message': 'Missing or invalid table token.'})
+        return
+    _activate_table(token)
+    sid_to_token[_request_sid()] = token
+    join_room(token)
+
     nickname = (data.get('nickname') or '').strip()
     session_id = (data.get('session_id') or '').strip()
 
@@ -299,8 +235,13 @@ def on_join_game(data):
 
 
 @socketio.on('start_game')
-def on_start_game():
+def on_start_game(data):
     global current_game, session_to_player, game_active
+    token = _normalize_token((data or {}).get('token')) or sid_to_token.get(_request_sid(), '')
+    if not token:
+        emit('start_error', {'message': 'Missing table token.'})
+        return
+    _activate_table(token)
 
     players_list = _connected_lobby_players()
     if len(players_list) < 2:
@@ -327,7 +268,7 @@ def on_start_game():
     _persist_runtime_state()
 
     print(f'[start_game] {len(players)} players')
-    socketio.emit('game_starting', {})
+    socketio.emit('game_starting', {}, to=active_token)
     _broadcast_lobby()
     _broadcast_game_state()
     _send_private_hands()
@@ -338,6 +279,10 @@ def on_start_game():
 
 @socketio.on('player_action')
 def on_player_action(data):
+    token = _normalize_token((data or {}).get('token')) or sid_to_token.get(_request_sid(), '')
+    if not token:
+        return
+    _activate_table(token)
     if not current_game or not game_active:
         return
     action = data.get('action', '')
@@ -346,8 +291,12 @@ def on_player_action(data):
 
 
 @socketio.on('next_hand')
-def on_next_hand():
+def on_next_hand(data):
     global current_game, game_active
+    token = _normalize_token((data or {}).get('token')) or sid_to_token.get(_request_sid(), '')
+    if not token:
+        return
+    _activate_table(token)
 
     if not current_game:
         return
@@ -456,7 +405,7 @@ def _process_automatic_turns():
 def _broadcast_game_state():
     if not current_game:
         return
-    socketio.emit('game_state', current_game.to_dict())
+    socketio.emit('game_state', current_game.to_dict(), to=active_token)
 
 
 def _send_private_hands():
@@ -501,7 +450,7 @@ def _broadcast_hand_over():
         'winner_details': current_game.winner_hand_details(),
         'pot_results': current_game.get_pot_results(),
         'game_state': current_game.to_dict(),
-    })
+    }, to=active_token)
 
 
 # ── Lobby helpers ─────────────────────────────────────────────────────────────
@@ -526,7 +475,7 @@ def _lobby_snapshot():
 
 
 def _broadcast_lobby():
-    socketio.emit('lobby_update', _lobby_snapshot())
+    socketio.emit('lobby_update', _lobby_snapshot(), to=active_token)
 
 
 def _queue_snapshot():
@@ -544,7 +493,7 @@ def _queue_snapshot():
 
 
 def _broadcast_queue():
-    socketio.emit('queue_update', _queue_snapshot())
+    socketio.emit('queue_update', _queue_snapshot(), to=active_token)
 
 
 def _attach_session_to_sid(session_id: str, sid: str):
@@ -552,8 +501,12 @@ def _attach_session_to_sid(session_id: str, sid: str):
     old_sid = info.get('sid')
     if old_sid and old_sid != sid:
         sid_to_session.pop(old_sid, None)
+        sid_to_token.pop(old_sid, None)
+        leave_room(active_token, sid=old_sid)
 
     sid_to_session[sid] = session_id
+    sid_to_token[sid] = active_token
+    join_room(active_token, sid=sid)
     info['sid'] = sid
     info['is_connected'] = True
 
