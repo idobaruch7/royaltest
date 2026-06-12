@@ -1316,8 +1316,8 @@
     // ── Join ─────────────────────────────────────────────────────────────────
     function tryJoin() {
         if (!/^[A-Z0-9]{8}$/.test(tableToken)) {
-            joinError.textContent = 'Missing or invalid table token. Open the host join link.';
-            return;
+            // joinError.textContent = 'Missing or invalid table token. Open the host join link.';
+            // return;
         }
         const name = inputNickname.value.trim();
         if (!name) return;
@@ -1384,7 +1384,8 @@
     // ── Socket events ─────────────────────────────────────────────────────────
     socket.on('connect', () => {
         if (!/^[A-Z0-9]{8}$/.test(tableToken)) {
-            joinError.textContent = 'Missing or invalid table token. Open the host join link.';
+            inputNickname.setAttribute('placeholder', 'Game code');
+            btnJoin.addEventListener('click', () => {location.replace(`${document.location.origin}${document.location.pathname}?token=${inputNickname.value}`);})
             return;
         }
         trySessionRejoin();
