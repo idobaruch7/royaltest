@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     ROYALTEST_HOST=0.0.0.0 \
     ROYALTEST_PORT=5000 \
     ROYALTEST_DEBUG=0 \
-    ROYALTEST_DB_PATH=/data/game.db
+    ROYALTEST_DATABASE_URL=postgresql+psycopg://postgres@localhost:5432/royaltest
 
 WORKDIR /app
 

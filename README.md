@@ -39,7 +39,7 @@ cd royaltest
 docker compose up --build
 ```
 
-This builds from `Dockerfile`, starts the container, publishes port `5000`, and persists SQLite data in a named volume.
+This builds from `Dockerfile`, starts the container, publishes port `5000`, and persists Postgres data in a named volume.
 
 ## Local Development
 
@@ -72,6 +72,7 @@ You can configure runtime behavior with environment variables:
 - `ROYALTEST_HOST`: bind host (default: `0.0.0.0`)
 - `ROYALTEST_PORT`: bind port (default: `5000`)
 - `ROYALTEST_DEBUG`: debug mode (`1/true/yes/on` to enable, default off)
+- `ROYALTEST_DATABASE_URL`: SQLAlchemy Postgres URL for runtime game state
 
 Example:
 

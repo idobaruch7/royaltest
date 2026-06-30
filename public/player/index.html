@@ -6,6 +6,8 @@
     <title>RoyalTest</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="icon" type="image/png" href="/public/images/favicon.png" />
+
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         /* ── Variables ── */
@@ -1074,7 +1076,13 @@
 
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script>
-    const socket = io();
+    const socket = io({
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 3000,
+        reconnectionDelayMax: 5000,
+        timeout: 10000,
+    });
 
     const screens          = { join: document.getElementById('join-screen'), queue: document.getElementById('queue-screen'), lobby: document.getElementById('lobby-screen'), game: document.getElementById('game-screen') };
     const btnJoin          = document.getElementById('btn-join');
@@ -1108,6 +1116,7 @@
     const orientationLockOverlay = document.getElementById('orientation-lock-overlay');
     const PLAYER_SESSION_KEY = 'royaltest.playerSessionId';
     const PLAYER_NICKNAME_KEY = 'royaltest.playerNickname';
+    const tableToken = (new URLSearchParams(window.location.search).get('token') || '').toUpperCase();
 
     let myNickname = '';
     let myChips    = 1000;
@@ -1117,7 +1126,6 @@
     let currentTurnState = null;
     let raiseStep = 1;
     let pendingJoinName = '';
-    let hasTriedAutoJoin = false;
     const playerSessionId = getOrCreatePlayerSessionId();
     const prefersCoarsePointer = window.matchMedia('(pointer: coarse)');
     const isLandscape = window.matchMedia('(orientation: landscape)');
@@ -1238,17 +1246,18 @@
         inputNickname.value = name;
     }
 
-    function tryAutoJoin() {
-        if (hasTriedAutoJoin) return;
-        hasTriedAutoJoin = true;
-
-        const savedName = loadSavedNickname();
-        if (!savedName) return;
-
-        pendingJoinName = savedName;
-        inputNickname.value = savedName;
-        joinError.textContent = 'Rejoining your seat…';
-        socket.emit('join_game', { nickname: savedName, session_id: playerSessionId });
+    function trySessionRejoin() {
+        if (!/^[A-Z0-9]{8}$/.test(tableToken)) return;
+        const name = (myNickname || pendingJoinName || loadSavedNickname()).trim();
+        if (!name) return;
+        pendingJoinName = name;
+        inputNickname.value = name;
+        if (myNickname) {
+            setStatus('', 'Connection restored. Rejoining your seat…');
+        } else {
+            joinError.textContent = 'Rejoining your seat…';
+        }
+        socket.emit('join_game', { nickname: name, session_id: playerSessionId, token: tableToken });
     }
 
     function makeCard(rank, suit, size = 'small') {
@@ -1308,11 +1317,15 @@
 
     // ── Join ─────────────────────────────────────────────────────────────────
     function tryJoin() {
+        if (!/^[A-Z0-9]{8}$/.test(tableToken)) {
+            // joinError.textContent = 'Missing or invalid table token. Open the host join link.';
+            // return;
+        }
         const name = inputNickname.value.trim();
         if (!name) return;
         pendingJoinName = name;
         joinError.textContent = '';
-        socket.emit('join_game', { nickname: name, session_id: playerSessionId });
+        socket.emit('join_game', { nickname: name, session_id: playerSessionId, token: tableToken });
     }
     btnJoin.addEventListener('click', tryJoin);
     inputNickname.addEventListener('keydown', e => { if (e.key === 'Enter') tryJoin(); });
@@ -1367,13 +1380,35 @@
         setRaiseUiOpen(false);
         actionPanel.classList.remove('active');
         setStatus('', 'Action sent…');
-        socket.emit('player_action', { action, amount });
+        socket.emit('player_action', { action, amount, token: tableToken });
     }
 
     // ── Socket events ─────────────────────────────────────────────────────────
     socket.on('connect', () => {
-        if (!myNickname) {
-            tryAutoJoin();
+        if (!/^[A-Z0-9]{8}$/.test(tableToken)) {
+            inputNickname.setAttribute('placeholder', 'Game code');
+            btnJoin.addEventListener('click', () => {location.replace(`${document.location.origin}${document.location.pathname}?token=${inputNickname.value}`);})
+            inputNickname.addEventListener('keydown', e => { if (e.key === 'Enter') location.replace(`${document.location.origin}${document.location.pathname}?token=${inputNickname.value}`); });
+
+            return;
+        }
+        trySessionRejoin();
+    });
+
+    socket.on('disconnect', () => {
+        if (myNickname) {
+            setStatus('result', 'Disconnected from server. Reconnecting…');
+            actionPanel.classList.remove('active');
+        } else {
+            joinError.textContent = 'Disconnected from server. Reconnecting…';
+        }
+    });
+
+    socket.io.on('reconnect_attempt', () => {
+        if (myNickname) {
+            setStatus('result', 'Disconnected from server. Reconnecting…');
+        } else {
+            joinError.textContent = 'Disconnected from server. Reconnecting…';
         }
     });
 

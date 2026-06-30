@@ -28,6 +28,10 @@ class Card:
     def to_dict(self):
         return {'rank': self.rank, 'suit': self.suit}
 
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(data['rank'], data['suit'])
+
 
 class Deck:
     def __init__(self):
@@ -40,6 +44,15 @@ class Deck:
         dealt = self.cards[:n]
         self.cards = self.cards[n:]
         return dealt
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        deck = cls.__new__(cls)
+        deck.cards = [Card.from_dict(card) for card in data.get('cards', [])]
+        return deck
+
+    def to_dict(self) -> dict:
+        return {'cards': [card.to_dict() for card in self.cards]}
 
 
 class GameState(Enum):
@@ -595,3 +608,102 @@ class Game:
             out['winners'] = [p.nickname for p in self._winners]
             out['winner_hands'] = self.winner_hand_names()
         return out
+
+    def to_persisted_dict(self) -> dict:
+        players = []
+        for p in self.players:
+            player_type = 'bot'
+            player_data = {}
+            if hasattr(p, 'session_id'):
+                player_type = 'human'
+                player_data = {
+                    'session_id': p.session_id,
+                    'sid': p.sid,
+                    'is_connected': getattr(p, 'is_connected', True),
+                }
+            elif hasattr(p, 'personality'):
+                player_data = {'personality': p.personality}
+
+            players.append({
+                'type': player_type,
+                'nickname': p.nickname,
+                'chips': p.chips,
+                'hand': [c.to_dict() for c in (p.hand or [])],
+                'bet': p.bet,
+                'round_bet': getattr(p, 'round_bet', 0),
+                'folded': p.folded,
+                **player_data,
+            })
+
+        return {
+            'players': players,
+            'small_blind': self.small_blind,
+            'big_blind': self.big_blind,
+            'dealer_index': self.dealer_index,
+            'deck': self.deck.to_dict() if self.deck else None,
+            'community_cards': [c.to_dict() for c in self.community_cards],
+            'pot': self.pot,
+            'state': self.state.value,
+            'current_bet': self.current_bet,
+            'min_raise': self.min_raise,
+            'to_act': list(self.to_act),
+            'raise_reopened_for': list(self.raise_reopened_for),
+            'small_blind_index': self.small_blind_index,
+            'big_blind_index': self.big_blind_index,
+            'winners': [p.nickname for p in self._winners],
+            'pot_results': self._pot_results,
+            'last_action_error': self.last_action_error,
+        }
+
+    @classmethod
+    def from_persisted_dict(cls, data: dict):
+        from bot_player import HumanPlayer, BotPlayer
+
+        players = []
+        for payload in data.get('players', []):
+            if payload.get('type') == 'human':
+                player = HumanPlayer(
+                    payload['nickname'],
+                    payload['session_id'],
+                    payload.get('sid'),
+                    payload.get('chips', 1000),
+                )
+                player.is_connected = payload.get('is_connected', True)
+            else:
+                player = BotPlayer(
+                    payload['nickname'],
+                    payload.get('personality', 'calculator'),
+                    payload.get('chips', 1000),
+                )
+            player.hand = [Card.from_dict(card) for card in payload.get('hand', [])]
+            player.bet = payload.get('bet', 0)
+            player.round_bet = payload.get('round_bet', 0)
+            player.folded = payload.get('folded', False)
+            players.append(player)
+
+        game = cls(
+            players=players,
+            small_blind=data.get('small_blind', 10),
+            big_blind=data.get('big_blind', 20),
+        )
+        game.dealer_index = data.get('dealer_index', 0)
+        game.deck = Deck.from_dict(data['deck']) if data.get('deck') else None
+        game.community_cards = [Card.from_dict(card) for card in data.get('community_cards', [])]
+        game.pot = data.get('pot', 0)
+        game.state = GameState(data.get('state', GameState.WAITING.value))
+        game.current_bet = data.get('current_bet', 0)
+        game.min_raise = data.get('min_raise', game.big_blind)
+        game.to_act = data.get('to_act', [])
+        game.raise_reopened_for = set(data.get('raise_reopened_for', []))
+        game.small_blind_index = data.get('small_blind_index', 0)
+        game.big_blind_index = data.get('big_blind_index', 1 if len(players) > 1 else 0)
+        game._pot_results = data.get('pot_results', [])
+        game.last_action_error = data.get('last_action_error', '')
+
+        winners = []
+        winner_names = set(data.get('winners', []))
+        for player in game.players:
+            if player.nickname in winner_names:
+                winners.append(player)
+        game._winners = winners
+        return game

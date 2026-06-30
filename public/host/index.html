@@ -6,6 +6,8 @@
     <title>RoyalTest — Table</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="manifest" href="/public/manifest.json" />
+    <link rel="icon" type="image/png" href="/public/images/favicon.png" />
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         /* ── Variables ── */
@@ -144,13 +146,16 @@
             text-align: center;
             backdrop-filter: blur(6px);
             box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            align-items: center;
+            justify-items: center;
+            padding: 16px;
         }
         .join-url-box .lbl {
-            font-size: 0.9rem;
+            font-size: 32px;
             letter-spacing: 0.16em;
             text-transform: uppercase;
-            color: var(--text-muted);
-            margin-bottom: 6px;
+            /* color: var(--text-muted); */
+            /* margin-bottom: 6px; */
         }
 
         .lobby-empty {
@@ -161,12 +166,31 @@
             font-weight: 600;
             letter-spacing: 0.03em;
         }
-        .join-url-box .url {
+        .join-qr-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        .join-qr-frame {
+            background: rgba(255,255,255,0.96);
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 4px 22px rgba(0,0,0,0.28);
+        }
+        #join-qr {
+            width: 180px;
+            height: 180px;
+            display: block;
+        }
+        .join-qr-instructions {
             font-family: 'IBM Plex Mono', monospace;
-            font-size: clamp(1.1rem, 2.2vw, 1.55rem);
-            font-weight: 600;
+            font-size: 0.86rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
             color: var(--gold-bright);
-            letter-spacing: 0.04em;
+            max-width: 360px;
+            line-height: 1.45;
         }
 
         /* Player badges in lobby */
@@ -731,7 +755,50 @@
             filter: none;
             opacity: 0.42;
         }
+        #qrcode {
+            align-items: center;
+            justify-items: center;
+            width: fit-content;
+            height: fit-content;
+            padding: 24px;
+            background-color: white;
+        }
+        .mono {
+            font-family: monospace;
+            background-color: #333;
+            border-radius: 4%;
+            font-size: 24px;
+            padding: 10px;
+        }
+        .game-token {
+            font-size: 64px;
+        }
+        .join-url-boxes-div {
+            display: flex;
+            justify-items: center;
+            align-items: center;
+        }
+        .logical {
+            font-size: 100px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            /* color: var(--text-muted); */
+            margin: 64px;
+        }
+        .little-logical {
+            font-size: 64px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            /* color: var(--text-muted); */
+            margin: 8px;
+        }
+        .join-url-box {
+            padding-bottom: 24px;
+            padding-top: 10px;
+        }
     </style>
+    
+
 </head>
 <body>
 
@@ -742,10 +809,22 @@
             <div class="lobby-logo">♠ RoyalTest</div>
             <div class="lobby-tagline">Private Texas Hold'em</div>
             <div class="lobby-rule"></div>
+            <div class="join-url-boxes-div">
+            <div class="join-url-box">
+                <div class="lbl">Scan</div>
+                <!-- <div class="url" id="join-url">—</div> -->
+                <div id="qrcode"></div>
+                
+            </div>
+                            <div class="logical">OR</div>
 
             <div class="join-url-box">
-                <div class="lbl">Players join at</div>
-                <div class="url" id="join-url">—</div>
+                <div class="lbl">navigate to</div>
+                <div class="mono"><span id="join-url"></span></div>
+                <div class="little-logical">AND</div>
+                <div class="lbl">Join with code</div>
+                <div class="mono game-token"><span id="code"></span></div>
+            </div>
             </div>
 
             <div id="lobby-list" class="lobby-players">
@@ -796,8 +875,15 @@
     </div>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="/public/qrcode.min.js"></script>
     <script>
-        const socket = io();
+        const socket = io({
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 3000,
+            reconnectionDelayMax: 5000,
+            timeout: 10000,
+        });
 
         const lobbyScreen    = document.getElementById('lobby-screen');
         const gameScreen     = document.getElementById('game-screen');
@@ -818,6 +904,8 @@
         const perfToggle     = document.getElementById('perf-toggle');
         const queuePanel     = document.getElementById('queue-panel');
         const queueList      = document.getElementById('queue-list');
+        const joinQrCanvas   = document.getElementById('join-qr');
+        const joinQrInfo     = document.getElementById('join-qr-instructions');
 
         // Stable seat assignment: nickname → index 0-7
         let playerSeats   = {};
@@ -829,6 +917,7 @@
         let potCenterCache = null;
         let soundEnabled = true;
         let lowPerfMode = /web0s|smart-tv|smarttv|hbbtv|netcast|tizen/i.test(navigator.userAgent || '');
+        const tableToken = (new URLSearchParams(window.location.search).get('token') || '').toUpperCase();
 
         const PHASE_NAMES = {
             waiting: 'Waiting', pre_flop: 'Pre-Flop', flop: 'Flop',
@@ -885,6 +974,24 @@
             document.documentElement.style.setProperty('--host-scale', String(scale));
         }
 
+        async function renderJoinQr(joinUrl) {
+            if (!joinQrCanvas || !joinQrInfo) return;
+            if (!window.QRCode || !joinUrl) {
+                joinQrInfo.textContent = joinUrl || 'Waiting for table link…';
+                return;
+            }
+            try {
+                await window.QRCode.toCanvas(joinQrCanvas, joinUrl, {
+                    width: 180,
+                    margin: 1,
+                    color: { dark: '#111111', light: '#ffffff' },
+                });
+                joinQrInfo.textContent = 'Scan with your phone camera to join this table.';
+            } catch {
+                joinQrInfo.textContent = joinUrl;
+            }
+        }
+
         function scheduleRender(state) {
             pendingGameState = state;
             if (renderScheduled) return;
@@ -899,9 +1006,31 @@
 
         // ── Socket events ─────────────────────────────────────────────────────
         socket.on('connect', () => {
-            socket.emit('host_connected');
+            if (!/^[A-Z0-9]{8}$/.test(tableToken)) {
+                turnBannerEl.textContent = 'Missing or invalid table token.';
+                return;
+            }
+            socket.emit('host_connected', { token: tableToken });
+            var joinUrl = `${location.protocol}//${location.host}/join?token=${tableToken}`;
             document.getElementById('join-url').textContent =
-                `${location.protocol}//${location.hostname}:5000/join`;
+                `${location.protocol}//${location.host}/join`;
+            document.getElementById("qrcode").innerHTML = "";
+            document.getElementById("code").textContent=tableToken;
+
+            new QRCode(document.getElementById("qrcode"), {
+                text: joinUrl,
+                width: 300,
+                height: 300
+            });
+            turnBannerEl.textContent = joinUrl;
+        });
+
+        socket.on('disconnect', () => {
+            turnBannerEl.textContent = 'Disconnected from server. Reconnecting…';
+        });
+
+        socket.io.on('reconnect_attempt', () => {
+            turnBannerEl.textContent = 'Disconnected from server. Reconnecting…';
         });
 
         const savedHostSound = localStorage.getItem('host_sound_enabled');
@@ -1022,10 +1151,10 @@
             winnerOverlay.style.display = 'flex';
         });
 
-        btnStart.addEventListener('click',    () => socket.emit('start_game'));
+        btnStart.addEventListener('click',    () => socket.emit('start_game', { token: tableToken }));
         btnNextHand.addEventListener('click', () => {
             winnerOverlay.style.display = 'none';
-            socket.emit('next_hand');
+            socket.emit('next_hand', { token: tableToken });
         });
 
         // ── Audio ─────────────────────────────────────────────────────────────
